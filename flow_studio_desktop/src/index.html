@@ -101,6 +101,69 @@
         .input-bar { padding: 12px 18px; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 10px; }
         .input-bar textarea { flex: 1; background: #07090e; border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 8px; resize: none; height: 46px; font-size: 0.92rem; outline: none; user-select: text; }
         .btn-send { background: linear-gradient(135deg, #2563eb, #3b82f6); border: none; color: white; padding: 0 20px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+
+        /* Model Loading Progress Bar */
+        .loading-box {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-top: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .loading-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #93c5fd;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .loading-timer {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+        .progress-bar-bg {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            width: 8%;
+            background: linear-gradient(90deg, #2563eb, #38bdf8, #818cf8);
+            border-radius: 4px;
+            transition: width 0.25s ease-out;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+        .loading-step-desc {
+            margin-top: 6px;
+            font-size: 0.73rem;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .spinner {
+            display: inline-block;
+            width: 11px;
+            height: 11px;
+            border: 2px solid rgba(56, 189, 248, 0.3);
+            border-top-color: #38bdf8;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -181,7 +244,7 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
 左側のセレクターでモデルを切り替え、プロンプトを入力して対話できます。</div>
             </div>
             <div class="input-bar">
-                <textarea id="prompt-input" placeholder="質問や指示を入力してください..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendPrompt();}"></textarea>
+                <textarea id="prompt-input" placeholder="質問や指示を入力してください... (Enterで送信, Shift+Enterで改行)"></textarea>
                 <button class="btn-send" onclick="sendPrompt()">実行</button>
             </div>
         </div>
@@ -232,12 +295,19 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
                 const sel = document.getElementById('model-select');
                 const cur = sel.value;
                 sel.innerHTML = '';
-                availableModelsData.forEach(m => {
+                if (availableModelsData.length === 0) {
                     const opt = document.createElement('option');
-                    opt.value = m.id;
-                    opt.innerText = m.name;
+                    opt.value = "";
+                    opt.innerText = "（ローカルモデル未検出: 下のHFから取得してください）";
                     sel.appendChild(opt);
-                });
+                } else {
+                    availableModelsData.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m.id;
+                        opt.innerText = m.name;
+                        sel.appendChild(opt);
+                    });
+                }
                 if (cur && Array.from(sel.options).some(o => o.value === cur)) {
                     sel.value = cur;
                 }
@@ -366,6 +436,37 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
             }
         }
 
+        // Japanese IME Composition Handling (Prevents unintended submit on Enter to confirm kanji)
+        let isComposing = false;
+        let justEndedComposition = false;
+        const promptInput = document.getElementById('prompt-input');
+
+        promptInput.addEventListener('compositionstart', () => {
+            isComposing = true;
+        });
+
+        promptInput.addEventListener('compositionend', () => {
+            isComposing = false;
+            justEndedComposition = true;
+            setTimeout(() => { justEndedComposition = false; }, 120);
+        });
+
+        promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                if (e.shiftKey) {
+                    return; // Shift+Enter allows newline insertion
+                }
+                if (e.isComposing || isComposing || justEndedComposition || e.keyCode === 229) {
+                    // Do not submit while converting or immediately after confirming IME conversion
+                    return;
+                }
+                e.preventDefault();
+                sendPrompt();
+            }
+        });
+
+        let requestCounter = 0;
+
         async function sendPrompt() {
             const input = document.getElementById('prompt-input');
             const prompt = input.value.trim();
@@ -381,15 +482,55 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
             const sel = document.getElementById('model-select');
             const currentModelName = sel.options[sel.selectedIndex]?.text || sel.value;
 
+            const reqId = ++requestCounter;
             const assistantMsg = document.createElement('div');
             assistantMsg.className = 'msg assistant';
-            assistantMsg.innerHTML = `<div class="msg-model-badge">🤖 ${currentModelName}</div><div class="content"><em>⚡ 生成中...</em></div>`;
+            assistantMsg.innerHTML = `
+                <div class="msg-model-badge">🤖 ${currentModelName}</div>
+                <div class="loading-box" id="loading-box-${reqId}">
+                    <div class="loading-header">
+                        <span><span class="spinner"></span> ⚡ 初回メモリロード中 (NVMe ➔ RAM)</span>
+                        <span class="loading-timer" id="timer-${reqId}">0.0s</span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="pbar-${reqId}"></div>
+                    </div>
+                    <div class="loading-step-desc" id="pstep-${reqId}">NVMeからモデルテンソルを展開しています...</div>
+                </div>
+                <div class="content" id="content-${reqId}" style="display: none;"></div>
+            `;
             msgs.appendChild(assistantMsg);
             msgs.scrollTop = msgs.scrollHeight;
 
-            const contentDiv = assistantMsg.querySelector('.content');
+            const contentDiv = document.getElementById(`content-${reqId}`);
+            const pbar = document.getElementById(`pbar-${reqId}`);
+            const pstep = document.getElementById(`pstep-${reqId}`);
+            const timerEl = document.getElementById(`timer-${reqId}`);
+            const loadingBox = document.getElementById(`loading-box-${reqId}`);
+
             const model = sel.value;
             const maxTokens = parseInt(document.getElementById('max-tokens').value) || 256;
+
+            // Start smooth progress bar animation for model loading
+            const startTime = Date.now();
+            let currentPct = 12;
+            const progressInterval = setInterval(() => {
+                const elapsedSec = (Date.now() - startTime) / 1000;
+                if (timerEl) timerEl.innerText = `${elapsedSec.toFixed(1)}s`;
+
+                if (currentPct < 88) {
+                    currentPct += Math.max(0.8, (88 - currentPct) * 0.12);
+                    if (pbar) pbar.style.width = `${currentPct.toFixed(1)}%`;
+                }
+
+                if (elapsedSec > 1.2 && elapsedSec < 2.8) {
+                    if (pstep) pstep.innerText = "テンソル構造の検証 & Unified Memoryへのマッピング中...";
+                } else if (elapsedSec >= 2.8 && elapsedSec < 4.5) {
+                    if (pstep) pstep.innerText = "KVキャッシュバッファの確保 & 語彙辞書ロード中...";
+                } else if (elapsedSec >= 4.5) {
+                    if (pstep) pstep.innerText = "推論エンジン初期化完了、第1トークン生成待機中...";
+                }
+            }, 120);
 
             try {
                 const res = await fetch(`${API_BASE}/api/generate`, {
@@ -400,7 +541,6 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
 
                 const reader = res.body.getReader();
                 const decoder = new TextDecoder();
-                contentDiv.innerText = '';
                 let hasReceivedContent = false;
 
                 while (true) {
@@ -408,15 +548,33 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
                     if (done) break;
                     const chunk = decoder.decode(value);
                     if (chunk) {
-                        hasReceivedContent = true;
+                        if (!hasReceivedContent) {
+                            hasReceivedContent = true;
+                            clearInterval(progressInterval);
+                            const totalLoadSec = ((Date.now() - startTime) / 1000).toFixed(1);
+                            if (pbar) pbar.style.width = '100%';
+                            if (pstep) pstep.innerHTML = `✓ ロード完了 (${totalLoadSec}s) — ストリーミング出力中`;
+                            
+                            // Smooth transition to text output
+                            setTimeout(() => {
+                                if (loadingBox) loadingBox.remove();
+                                contentDiv.style.display = 'block';
+                            }, 250);
+                        }
                         contentDiv.innerText += chunk;
                         msgs.scrollTop = msgs.scrollHeight;
                     }
                 }
+                clearInterval(progressInterval);
                 if (!hasReceivedContent) {
+                    if (loadingBox) loadingBox.remove();
+                    contentDiv.style.display = 'block';
                     contentDiv.innerText = '（応答がありませんでした。モデルのログを確認してください）';
                 }
             } catch(e) {
+                clearInterval(progressInterval);
+                if (loadingBox) loadingBox.remove();
+                contentDiv.style.display = 'block';
                 contentDiv.innerHTML += `<br><span style="color:#f87171;">エラー: ローカル推論エンジン(${API_BASE})への接続に失敗しました</span>`;
             }
         }

@@ -26,13 +26,10 @@ PROJECT_MODELS_DIR = Path(__file__).resolve().parents[2] / "models"
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 PROJECT_MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
-# Dynamic scanned directories list
+# Dynamic scanned directories list (Default strictly limited to project models/ and cache)
 CUSTOM_DIRS: List[Path] = [
     PROJECT_MODELS_DIR,
     MODELS_DIR,
-    Path("/Volumes/NVMe2TB/AI-LLM/models"),
-    Path("/Volumes/NVMe2TB/AI-LLM/LLMjp/Pyrite/gguf"),
-    Path("/Volumes/NVMe2TB/AI-LLM/LLM/iOS-GenAI-Sampler-main 2"),
 ]
 
 
@@ -122,11 +119,26 @@ async def list_available_models():
         else 3
     ))
 
-    # Add Ollama models
-    models.extend([
-        {"id": "qwen3.5:9b-mlx", "name": "[Ollama] Qwen-3.5-9B (Fast Japanese)", "source": "ollama", "resolved_path": "Ollama Service: qwen3.5:9b-mlx", "category": "ollama"},
-        {"id": "ornith-1.5:9b", "name": "[Ollama] Ornith-1.5-9B (Qwen Reasoning)", "source": "ollama", "resolved_path": "Ollama Service: ornith-1.5:9b", "category": "ollama"},
-    ])
+    # Only add Ollama models if Ollama daemon is actively running and has installed models
+    try:
+        req = urllib.request.Request("http://127.0.0.1:11434/api/tags", headers={"User-Agent": "FLOW-Studio"})
+        with urllib.request.urlopen(req, timeout=0.5) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode())
+                for om in data.get("models", []):
+                    m_name = om.get("name", "")
+                    if m_name:
+                        size_gb = round(om.get("size", 0) / (1024**3), 2)
+                        models.append({
+                            "id": m_name,
+                            "name": f"[Ollama] {m_name} ({size_gb} GB)",
+                            "source": "ollama",
+                            "resolved_path": f"Ollama Daemon: {m_name}",
+                            "category": "ollama",
+                            "size_gb": size_gb,
+                        })
+    except Exception:
+        pass
 
     return {
         "models": models,

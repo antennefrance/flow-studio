@@ -23,35 +23,31 @@
         
         /* Dedicated Full-Width Top Window Drag Strip */
         .titlebar-drag-strip {
-            height: 18px;
+            height: 22px;
             width: 100%;
-            background: var(--surface);
+            background: transparent;
             -webkit-app-region: drag;
-            cursor: grab;
             position: fixed;
             top: 0;
             left: 0;
             z-index: 9999;
         }
-        .titlebar-drag-strip:active { cursor: grabbing; }
 
         /* Top Navigation Bar with macOS Window Drag Support */
         header { 
             background: var(--surface); 
             border-bottom: 1px solid var(--border); 
-            height: 54px;
-            padding-top: 6px;
+            height: 56px;
+            padding-top: 4px;
             padding-left: 84px;
             padding-right: 20px;
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
             -webkit-app-region: drag; 
-            cursor: grab;
             position: relative;
             z-index: 10;
         }
-        header:active { cursor: grabbing; }
 
         header .logo-group, 
         header .logo-group *, 
@@ -72,12 +68,12 @@
         .metric-card span:first-child { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; font-weight: 600; }
         .metric-val { font-weight: 700; color: #38bdf8; }
 
-        button, select, input, textarea, a { -webkit-app-region: no-drag !important; }
+        button, select, input, textarea, a, .interactive { -webkit-app-region: no-drag !important; }
 
         .main-container { flex: 1; display: flex; overflow: hidden; }
-        .sidebar { width: 330px; background: var(--surface); border-right: 1px solid var(--border); padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
-        .sidebar label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
-        select, input { width: 100%; background: #07090e; border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 8px; margin-top: 4px; font-size: 0.85rem; outline: none; }
+        .sidebar { width: 340px; background: var(--surface); border-right: 1px solid var(--border); padding: 16px; display: flex; flex-direction: column; gap: 13px; overflow-y: auto; }
+        .sidebar label { font-size: 0.73rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
+        select, input { width: 100%; background: #07090e; border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 8px; margin-top: 4px; font-size: 0.84rem; outline: none; }
         select:focus, input:focus { border-color: var(--accent); }
         
         .info-card { background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
@@ -90,35 +86,99 @@
         .btn-danger { background: #b91c1c; }
         .btn-danger:hover { background: #991b1b; }
         
-        .hf-download-box { background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-        #download-status { font-size: 0.75rem; line-height: 1.4; color: #38bdf8; word-break: break-all; }
+        .box-section { background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 8px; padding: 11px; display: flex; flex-direction: column; gap: 7px; }
+        #download-status, #scan-status { font-size: 0.73rem; line-height: 1.4; color: #38bdf8; word-break: break-all; }
 
-        .api-badge { background: #1e2438; border: 1px dashed var(--border); padding: 8px 10px; border-radius: 8px; font-size: 0.78rem; line-height: 1.4; color: #cbd5e1; }
-        .api-badge code { color: #38bdf8; font-family: ui-monospace, monospace; }
-        
+        .active-model-bar { background: #111422; border-bottom: 1px solid var(--border); padding: 8px 18px; font-size: 0.78rem; display: flex; align-items: center; justify-content: space-between; color: #cbd5e1; }
+        .active-model-bar strong { color: #38bdf8; }
+
         .chat-area { flex: 1; display: flex; flex-direction: column; background: var(--bg); }
-        .messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; user-select: text; }
+        .messages { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; user-select: text; }
         .msg { max-width: 85%; padding: 12px 16px; border-radius: 12px; line-height: 1.6; font-size: 0.92rem; word-break: break-word; }
         .msg.user { align-self: flex-end; background: #2563eb; color: #fff; border-bottom-right-radius: 2px; }
         .msg.assistant { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 2px; white-space: pre-wrap; }
-        .input-bar { padding: 14px 20px; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 10px; }
+        .msg-model-badge { display: inline-block; font-size: 0.68rem; font-weight: 700; color: #60a5fa; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 4px; padding: 1px 6px; margin-bottom: 6px; }
+        .input-bar { padding: 12px 18px; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 10px; }
         .input-bar textarea { flex: 1; background: #07090e; border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 8px; resize: none; height: 46px; font-size: 0.92rem; outline: none; user-select: text; }
         .btn-send { background: linear-gradient(135deg, #2563eb, #3b82f6); border: none; color: white; padding: 0 20px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+
+        /* Model Loading Progress Bar */
+        .loading-box {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-top: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .loading-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #93c5fd;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .loading-timer {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+        .progress-bar-bg {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            width: 8%;
+            background: linear-gradient(90deg, #2563eb, #38bdf8, #818cf8);
+            border-radius: 4px;
+            transition: width 0.25s ease-out;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+        .loading-step-desc {
+            margin-top: 6px;
+            font-size: 0.73rem;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .spinner {
+            display: inline-block;
+            width: 11px;
+            height: 11px;
+            border: 2px solid rgba(56, 189, 248, 0.3);
+            border-top-color: #38bdf8;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
-    <div class="titlebar-drag-strip" data-tauri-drag-region></div>
+    <div class="titlebar-drag-strip" data-tauri-drag-region onmousedown="startNativeDrag(event)"></div>
 
-    <header id="main-header" data-tauri-drag-region>
-        <div class="logo-group" data-tauri-drag-region>
-            <div class="logo" data-tauri-drag-region>FLOW STUDIO</div>
-            <div class="badge badge-flow" data-tauri-drag-region>v1.1.0</div>
-            <div class="badge badge-metal" data-tauri-drag-region>RAM Streaming</div>
+    <header id="main-header" data-tauri-drag-region onmousedown="startNativeDrag(event)">
+        <div class="logo-group">
+            <div class="logo">FLOW STUDIO</div>
+            <div class="badge badge-flow">v1.1.0</div>
+            <div class="badge badge-metal">RAM Streaming</div>
         </div>
-        <div class="metrics" data-tauri-drag-region>
-            <div class="metric-card" data-tauri-drag-region>
-                <span data-tauri-drag-region>Unified Memory</span>
-                <span class="metric-val" id="ram-val" data-tauri-drag-region>Loading...</span>
+        <div class="metrics">
+            <div class="metric-card">
+                <span>Unified Memory</span>
+                <span class="metric-val" id="ram-val">Loading...</span>
             </div>
         </div>
     </header>
@@ -126,7 +186,7 @@
     <div class="main-container">
         <div class="sidebar">
             <div>
-                <label>Active Model (from models/)</label>
+                <label>Active Model (選択中モデル)</label>
                 <select id="model-select" onchange="onModelSelectChanged()">
                     <option value="auto" selected>Loading models...</option>
                 </select>
@@ -134,10 +194,10 @@
 
             <!-- Model Transparency & Inspection Box -->
             <div class="info-card">
-                <label>Model Search & Resolved Path</label>
+                <label>Active Model Resolution / 参照実体パス</label>
                 <div id="resolved-path-display"><code>Loading path...</code></div>
                 <div style="font-size: 0.68rem; color: var(--muted); margin-top: 4px;">
-                    Search Dirs: <code>./models/</code> & <code>~/.cache/flow_models/</code>
+                    Search Dirs: <span id="search-dirs-count">Scanning...</span>
                 </div>
             </div>
 
@@ -148,13 +208,17 @@
                 </button>
                 <div id="unload-status" style="display:none; font-size: 0.72rem; color: #34d399; margin-top: 4px;"></div>
             </div>
-            
-            <div>
-                <label>Max Output Tokens</label>
-                <input type="number" id="max-tokens" value="256" min="1" max="2048">
+
+            <!-- Arbitrary Directory Scanner -->
+            <div class="box-section">
+                <label>Load Custom Path / 任意のフォルダ走査</label>
+                <input type="text" id="custom-path" placeholder="/Volumes/NVMe2TB/AI-LLM/models">
+                <button class="btn-action" onclick="scanCustomDirectory()">+ ディレクトリを走査して追加</button>
+                <div id="scan-status" style="display:none;"></div>
             </div>
 
-            <div class="hf-download-box">
+            <!-- HF Download Box -->
+            <div class="box-section">
                 <label>Hugging Face Download</label>
                 <input type="text" id="hf-repo" placeholder="masahiroid/DeepSeek-Coder-V2-Lite-FLOW">
                 <input type="text" id="hf-file" placeholder="File (optional, e.g. *.flow / *.gguf)">
@@ -162,20 +226,25 @@
                 <div id="download-status" style="display:none;"></div>
             </div>
 
-            <div class="api-badge">
-                <strong>Local Server Active</strong><br>
-                API: <code>http://localhost:8080/v1</code>
+            <div>
+                <label>Max Output Tokens</label>
+                <input type="number" id="max-tokens" value="256" min="1" max="2048">
             </div>
         </div>
 
         <div class="chat-area">
+            <div class="active-model-bar" id="active-model-bar">
+                <span>Active: <strong id="active-model-title">Initializing...</strong></span>
+                <span style="font-size: 0.72rem; color: var(--muted);" id="active-engine-badge">Engine: Local</span>
+            </div>
+
             <div class="messages" id="messages">
                 <div class="msg assistant"><strong>FLOW Studio Native v1.1.0</strong>
 RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす環境です。
-<code>models/</code> フォルダの FLOW / GGUF モデルを直接読み込んで推論を実行できます。</div>
+左側のセレクターでモデルを切り替え、プロンプトを入力して対話できます。</div>
             </div>
             <div class="input-bar">
-                <textarea id="prompt-input" placeholder="質問や指示を入力してください..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendPrompt();}"></textarea>
+                <textarea id="prompt-input" placeholder="質問や指示を入力してください... (Enterで送信, Shift+Enterで改行)"></textarea>
                 <button class="btn-send" onclick="sendPrompt()">実行</button>
             </div>
         </div>
@@ -185,29 +254,34 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
         const API_BASE = "http://localhost:8080";
         let availableModelsData = [];
 
-        function initWindowDragging() {
-            const dragElements = [document.getElementById('main-header'), document.querySelector('.titlebar-drag-strip')];
-            dragElements.forEach(el => {
-                if (!el) return;
-                el.addEventListener('mousedown', (e) => {
-                    if (e.target.closest('button, select, input, textarea, a')) return;
-                    if (window.__TAURI__ && window.__TAURI__.window) {
-                        try {
-                            window.__TAURI__.window.getCurrentWindow().startDragging();
-                        } catch(err) {
-                            console.error('Tauri drag failed:', err);
-                        }
-                    }
-                });
-            });
+        // Native Tauri Window Drag Handler (Invokes Rust start_dragging directly)
+        async function startNativeDrag(e) {
+            if (e.target.closest('button, select, input, textarea, a, .interactive')) return;
+            if (window.__TAURI__) {
+                if (window.__TAURI__.core && window.__TAURI__.core.invoke) {
+                    try {
+                        await window.__TAURI__.core.invoke('drag_window');
+                        return;
+                    } catch(err) {}
+                }
+                if (window.__TAURI__.window && window.__TAURI__.window.getCurrentWindow) {
+                    try {
+                        await window.__TAURI__.window.getCurrentWindow().startDragging();
+                        return;
+                    } catch(err) {}
+                }
+            }
         }
-        initWindowDragging();
 
         async function updateTelemetry() {
             try {
                 const res = await fetch(`${API_BASE}/api/telemetry`);
                 const data = await res.json();
-                document.getElementById('ram-val').innerText = `${data.used_gb} GB / ${data.total_gb} GB (${data.percent}%)`;
+                const ramEl = document.getElementById('ram-val');
+                ramEl.innerText = `${data.used_gb} GB / ${data.total_gb} GB (${data.percent}%)`;
+                if (data.app_gb && data.wired_gb) {
+                    ramEl.title = `macOSアクティビティモニタ準拠:\n- アプリ: ${data.app_gb} GB\n- 確保(Wired): ${data.wired_gb} GB\n- 圧縮: ${data.compressed_gb} GB\n- キャッシュ: ${data.cached_gb} GB`;
+                }
             } catch(e) {}
         }
         setInterval(updateTelemetry, 2000);
@@ -221,34 +295,56 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
                 const sel = document.getElementById('model-select');
                 const cur = sel.value;
                 sel.innerHTML = '';
-                availableModelsData.forEach(m => {
+                if (availableModelsData.length === 0) {
                     const opt = document.createElement('option');
-                    opt.value = m.id;
-                    opt.innerText = m.name;
+                    opt.value = "";
+                    opt.innerText = "（ローカルモデル未検出: 下のHFから取得してください）";
                     sel.appendChild(opt);
-                });
+                } else {
+                    availableModelsData.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m.id;
+                        opt.innerText = m.name;
+                        sel.appendChild(opt);
+                    });
+                }
                 if (cur && Array.from(sel.options).some(o => o.value === cur)) {
                     sel.value = cur;
                 }
-                updatePathDisplay();
+                if (data.search_paths) {
+                    document.getElementById('search-dirs-count').innerText = `${data.search_paths.length} 箇所を走査中`;
+                }
+                updateActiveModelBanner();
             } catch(e) {}
         }
         refreshModels();
 
-        function updatePathDisplay() {
+        function updateActiveModelBanner() {
             const sel = document.getElementById('model-select');
             const target = availableModelsData.find(m => m.id === sel.value);
-            const display = document.getElementById('resolved-path-display');
-            if (target && target.resolved_path) {
-                display.innerHTML = `<code>${target.resolved_path}</code>`;
+            const titleEl = document.getElementById('active-model-title');
+            const pathEl = document.getElementById('resolved-path-display');
+            const badgeEl = document.getElementById('active-engine-badge');
+
+            if (target) {
+                titleEl.innerText = target.name;
+                pathEl.innerHTML = `<code>${target.resolved_path || target.id}</code>`;
+                if (target.source === 'ollama') {
+                    badgeEl.innerText = 'Engine: Ollama Service';
+                } else if (target.category === 'mlx') {
+                    badgeEl.innerText = 'Engine: Native MLX';
+                } else {
+                    badgeEl.innerText = 'Engine: FLOW / llama-cli';
+                }
             } else {
-                display.innerHTML = `<code>Auto-resolved from models/</code>`;
+                titleEl.innerText = sel.value || 'None';
+                pathEl.innerHTML = `<code>${sel.value || 'None'}</code>`;
+                badgeEl.innerText = 'Engine: Auto';
             }
         }
 
         async function onModelSelectChanged() {
-            updatePathDisplay();
-            // Automatically release RAM when switching models
+            updateActiveModelBanner();
             await unloadAllMemory(false);
         }
 
@@ -256,7 +352,7 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
             const statusDiv = document.getElementById('unload-status');
             if (showNotice) {
                 statusDiv.style.display = 'block';
-                statusDiv.innerText = '⚡ メモリ開放中...';
+                statusDiv.innerText = '⚡ メモリ完全開放中...';
             }
             try {
                 const res = await fetch(`${API_BASE}/api/models/unload`, { method: 'POST' });
@@ -268,6 +364,37 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
                 }
             } catch(e) {
                 if (showNotice) statusDiv.innerText = '✕ 開放エラー';
+            }
+        }
+
+        async function scanCustomDirectory() {
+            const input = document.getElementById('custom-path');
+            const path = input.value.trim();
+            const statusDiv = document.getElementById('scan-status');
+
+            if (!path) {
+                alert('走査するディレクトリまたはモデルファイルの絶対パスを入力してください。');
+                return;
+            }
+
+            statusDiv.style.display = 'block';
+            statusDiv.innerText = `⏳ パスを走査中: ${path} ...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/models/scan`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ directory: path })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    statusDiv.innerHTML = `<span style="color:#34d399;">✓ 走査完了: ${data.models.length} 個のモデルを検出</span>`;
+                    await refreshModels();
+                } else {
+                    statusDiv.innerHTML = `<span style="color:#f87171;">✕ エラー: ${data.detail}</span>`;
+                }
+            } catch(e) {
+                statusDiv.innerHTML = `<span style="color:#f87171;">✕ 接続エラー: ${e.message}</span>`;
             }
         }
 
@@ -309,6 +436,37 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
             }
         }
 
+        // Japanese IME Composition Handling (Prevents unintended submit on Enter to confirm kanji)
+        let isComposing = false;
+        let justEndedComposition = false;
+        const promptInput = document.getElementById('prompt-input');
+
+        promptInput.addEventListener('compositionstart', () => {
+            isComposing = true;
+        });
+
+        promptInput.addEventListener('compositionend', () => {
+            isComposing = false;
+            justEndedComposition = true;
+            setTimeout(() => { justEndedComposition = false; }, 120);
+        });
+
+        promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                if (e.shiftKey) {
+                    return; // Shift+Enter allows newline insertion
+                }
+                if (e.isComposing || isComposing || justEndedComposition || e.keyCode === 229) {
+                    // Do not submit while converting or immediately after confirming IME conversion
+                    return;
+                }
+                e.preventDefault();
+                sendPrompt();
+            }
+        });
+
+        let requestCounter = 0;
+
         async function sendPrompt() {
             const input = document.getElementById('prompt-input');
             const prompt = input.value.trim();
@@ -321,14 +479,58 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
             msgs.appendChild(userMsgDiv);
             input.value = '';
 
+            const sel = document.getElementById('model-select');
+            const currentModelName = sel.options[sel.selectedIndex]?.text || sel.value;
+
+            const reqId = ++requestCounter;
             const assistantMsg = document.createElement('div');
             assistantMsg.className = 'msg assistant';
-            assistantMsg.innerHTML = '<em>⚡ 生成中...</em>';
+            assistantMsg.innerHTML = `
+                <div class="msg-model-badge">🤖 ${currentModelName}</div>
+                <div class="loading-box" id="loading-box-${reqId}">
+                    <div class="loading-header">
+                        <span><span class="spinner"></span> ⚡ 初回メモリロード中 (NVMe ➔ RAM)</span>
+                        <span class="loading-timer" id="timer-${reqId}">0.0s</span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="pbar-${reqId}"></div>
+                    </div>
+                    <div class="loading-step-desc" id="pstep-${reqId}">NVMeからモデルテンソルを展開しています...</div>
+                </div>
+                <div class="content" id="content-${reqId}" style="display: none;"></div>
+            `;
             msgs.appendChild(assistantMsg);
             msgs.scrollTop = msgs.scrollHeight;
 
-            const model = document.getElementById('model-select').value;
+            const contentDiv = document.getElementById(`content-${reqId}`);
+            const pbar = document.getElementById(`pbar-${reqId}`);
+            const pstep = document.getElementById(`pstep-${reqId}`);
+            const timerEl = document.getElementById(`timer-${reqId}`);
+            const loadingBox = document.getElementById(`loading-box-${reqId}`);
+
+            const model = sel.value;
             const maxTokens = parseInt(document.getElementById('max-tokens').value) || 256;
+
+            // Start smooth progress bar animation for model loading
+            const startTime = Date.now();
+            let currentPct = 12;
+            const progressInterval = setInterval(() => {
+                const elapsedSec = (Date.now() - startTime) / 1000;
+                if (timerEl) timerEl.innerText = `${elapsedSec.toFixed(1)}s`;
+
+                if (currentPct < 88) {
+                    currentPct += Math.max(0.8, (88 - currentPct) * 0.12);
+                    if (pbar) pbar.style.width = `${currentPct.toFixed(1)}%`;
+                }
+
+                if (elapsedSec > 1.2 && elapsedSec < 2.8) {
+                    if (pstep) pstep.innerText = "テンソル構造の検証 & Unified Memoryへのマッピング中...";
+                } else if (elapsedSec >= 2.8 && elapsedSec < 4.5) {
+                    if (pstep) pstep.innerText = "KVキャッシュバッファの確保 & 語彙辞書ロード中...";
+                } else if (elapsedSec >= 4.5) {
+                    if (pstep) pstep.innerText = "推論エンジン初期化完了、第1トークン生成待機中...";
+                }
+            }, 120);
 
             try {
                 const res = await fetch(`${API_BASE}/api/generate`, {
@@ -339,7 +541,6 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
 
                 const reader = res.body.getReader();
                 const decoder = new TextDecoder();
-                assistantMsg.innerText = '';
                 let hasReceivedContent = false;
 
                 while (true) {
@@ -347,16 +548,34 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
                     if (done) break;
                     const chunk = decoder.decode(value);
                     if (chunk) {
-                        hasReceivedContent = true;
-                        assistantMsg.innerText += chunk;
+                        if (!hasReceivedContent) {
+                            hasReceivedContent = true;
+                            clearInterval(progressInterval);
+                            const totalLoadSec = ((Date.now() - startTime) / 1000).toFixed(1);
+                            if (pbar) pbar.style.width = '100%';
+                            if (pstep) pstep.innerHTML = `✓ ロード完了 (${totalLoadSec}s) — ストリーミング出力中`;
+                            
+                            // Smooth transition to text output
+                            setTimeout(() => {
+                                if (loadingBox) loadingBox.remove();
+                                contentDiv.style.display = 'block';
+                            }, 250);
+                        }
+                        contentDiv.innerText += chunk;
                         msgs.scrollTop = msgs.scrollHeight;
                     }
                 }
+                clearInterval(progressInterval);
                 if (!hasReceivedContent) {
-                    assistantMsg.innerText = '（応答がありませんでした。モデルのログを確認してください）';
+                    if (loadingBox) loadingBox.remove();
+                    contentDiv.style.display = 'block';
+                    contentDiv.innerText = '（応答がありませんでした。モデルのログを確認してください）';
                 }
             } catch(e) {
-                assistantMsg.innerHTML += `<br><span style="color:#f87171;">エラー: ローカル推論エンジン(${API_BASE})への接続に失敗しました</span>`;
+                clearInterval(progressInterval);
+                if (loadingBox) loadingBox.remove();
+                contentDiv.style.display = 'block';
+                contentDiv.innerHTML += `<br><span style="color:#f87171;">エラー: ローカル推論エンジン(${API_BASE})への接続に失敗しました</span>`;
             }
         }
     </script>
