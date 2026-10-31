@@ -1,7 +1,8 @@
 """Model Management & Hugging Face Hub Downloader Router.
 
 Allows downloading models directly from Hugging Face into the local FLOW runtime,
-querying local model availability and paths, and manually purging memory.
+scanning arbitrary directories for GGUF/FLOW/MLX models, querying local model availability,
+and manually purging memory.
 """
 
 import asyncio
@@ -25,10 +26,23 @@ PROJECT_MODELS_DIR = Path(__file__).resolve().parents[2] / "models"
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 PROJECT_MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
+# Dynamic scanned directories list
+CUSTOM_DIRS: List[Path] = [
+    PROJECT_MODELS_DIR,
+    MODELS_DIR,
+    Path("/Volumes/NVMe2TB/AI-LLM/models"),
+    Path("/Volumes/NVMe2TB/AI-LLM/LLMjp/Pyrite/gguf"),
+    Path("/Volumes/NVMe2TB/AI-LLM/LLM/iOS-GenAI-Sampler-main 2"),
+]
+
 
 class DownloadRequest(BaseModel):
     repo_id: str = Field(..., description="Hugging Face repository ID (e.g. masahiroid/DeepSeek-Coder-V2-Lite-FLOW)")
     filename: Optional[str] = Field(None, description="Optional specific filename to download (e.g. *.gguf or *.flow)")
+
+
+class ScanRequest(BaseModel):
+    directory: str = Field(..., description="Absolute path of directory or file to scan")
 
 
 class DownloadStatusResponse(BaseModel):
@@ -37,55 +51,109 @@ class DownloadStatusResponse(BaseModel):
     local_path: Optional[str] = None
 
 
+def _format_model_entry(p: Path, search_dir: Path) -> Dict[str, Any]:
+    resolved = p.resolve()
+    size_gb = round(resolved.stat().st_size / (1024**3), 2) if resolved.is_file() else 0.0
+    name = p.name
+
+    if ".flow" in name:
+        label = f"[FLOW Streaming] {name} ({size_gb} GB)"
+        category = "flow"
+    elif name.endswith(".gguf"):
+        label = f"[GGUF] {name} ({size_gb} GB)"
+        category = "gguf"
+    elif p.is_dir() and (p / "config.json").exists():
+        label = f"[MLX / HF] {name}"
+        category = "mlx"
+    else:
+        label = f"[Weight] {name} ({size_gb} GB)"
+        category = "generic"
+
+    return {
+        "id": str(p),
+        "name": label,
+        "source": "local",
+        "category": category,
+        "resolved_path": str(resolved),
+        "search_dir": str(search_dir),
+        "is_symlink": p.is_symlink(),
+        "size_gb": size_gb,
+    }
+
+
 @router.get("")
 async def list_available_models():
-    """List all models detected locally and presets with search path details."""
-    models = [
-        {"id": "auto", "name": "Auto Detect (Local FLOW / GGUF)", "source": "system", "resolved_path": "Auto-selected"},
-    ]
-
+    """List all models detected across standard and custom directories."""
+    models = []
     seen = set()
 
-    for search_dir in [PROJECT_MODELS_DIR, MODELS_DIR]:
+    # 1. Scan registered directories
+    for search_dir in CUSTOM_DIRS:
         if not search_dir.exists():
             continue
-        for p in search_dir.iterdir():
-            if p.is_file() or p.is_symlink():
-                resolved = p.resolve()
-                if resolved.exists() and resolved not in seen:
-                    seen.add(resolved)
-                    size_gb = round(resolved.stat().st_size / (1024**3), 2)
-                    name = p.name
-                    if ".flow" in name:
-                        label = f"[FLOW Streaming] {name} ({size_gb} GB)"
+        try:
+            # Check directory items
+            for p in search_dir.iterdir():
+                # Direct model files or symlinks
+                if p.is_file() or p.is_symlink():
+                    resolved = p.resolve()
+                    if resolved.exists() and resolved not in seen:
+                        if resolved.suffix in [".gguf", ".flow"] or ".gguf.flow" in resolved.name:
+                            seen.add(resolved)
+                            models.append(_format_model_entry(p, search_dir))
+                # Subdirectories (e.g. MLX model directories or nested models)
+                elif p.is_dir():
+                    if (p / "config.json").exists() and p.resolve() not in seen:
+                        seen.add(p.resolve())
+                        models.append(_format_model_entry(p, search_dir))
                     else:
-                        label = f"[Pyrite 2-bit GGUF] {name} ({size_gb} GB)"
-                    models.append({
-                        "id": str(p),
-                        "name": label,
-                        "source": "local",
-                        "resolved_path": str(resolved),
-                        "search_dir": str(search_dir),
-                        "is_symlink": p.is_symlink(),
-                    })
+                        for sub_p in p.glob("*.gguf"):
+                            if sub_p.resolve() not in seen:
+                                seen.add(sub_p.resolve())
+                                models.append(_format_model_entry(sub_p, search_dir))
+        except Exception:
+            continue
 
-    # Sort so runnable GGUF is at the top of local models
-    models.sort(key=lambda m: (0 if "gguf" in m["id"] else 1 if "flow" in m["id"] else 2))
+    # Sort: DeepSeek / Pyrite first, then other GGUF/FLOW, then MLX
+    models.sort(key=lambda m: (
+        0 if "deepseek" in m["id"].lower() and "gguf" in m["id"].lower()
+        else 1 if "flow" in m["id"].lower()
+        else 2 if "gguf" in m["id"].lower()
+        else 3
+    ))
 
-    # Ollama options
+    # Add Ollama models
     models.extend([
-        {"id": "qwen3.5:9b-mlx", "name": "[Ollama] Qwen-3.5-9B", "source": "ollama", "resolved_path": "Ollama Service"},
-        {"id": "ornith-1.5:9b", "name": "[Ollama] Ornith-1.5-9B", "source": "ollama", "resolved_path": "Ollama Service"},
+        {"id": "qwen3.5:9b-mlx", "name": "[Ollama] Qwen-3.5-9B (Fast Japanese)", "source": "ollama", "resolved_path": "Ollama Service: qwen3.5:9b-mlx", "category": "ollama"},
+        {"id": "ornith-1.5:9b", "name": "[Ollama] Ornith-1.5-9B (Qwen Reasoning)", "source": "ollama", "resolved_path": "Ollama Service: ornith-1.5:9b", "category": "ollama"},
     ])
 
     return {
         "models": models,
-        "search_paths": [
-            {"path": str(PROJECT_MODELS_DIR), "type": "Project Models Directory"},
-            {"path": str(MODELS_DIR), "type": "Global Cache Directory"},
-            {"path": "http://127.0.0.1:11434", "type": "Local Ollama Endpoint"},
-        ]
+        "search_paths": [{"path": str(d), "type": "Scanned Directory"} for d in CUSTOM_DIRS if d.exists()]
     }
+
+
+@router.post("/scan")
+async def scan_custom_directory(req: ScanRequest):
+    """Scan and add any arbitrary user-specified directory or file."""
+    path_str = req.directory.strip()
+    if not path_str:
+        raise HTTPException(status_code=400, detail="Path is required.")
+
+    target = Path(path_str).expanduser().resolve()
+    if not target.exists():
+        raise HTTPException(status_code=404, detail=f"Path does not exist: {path_str}")
+
+    if target.is_dir():
+        if target not in CUSTOM_DIRS:
+            CUSTOM_DIRS.insert(0, target)
+    elif target.is_file():
+        parent_dir = target.parent
+        if parent_dir not in CUSTOM_DIRS:
+            CUSTOM_DIRS.insert(0, parent_dir)
+
+    return await list_available_models()
 
 
 @router.post("/unload")

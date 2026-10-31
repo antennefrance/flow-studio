@@ -4,6 +4,7 @@ Queries kernel memory management state via native sysctl and vm_stat binaries.
 Zero dependencies on external C-extension packages like psutil.
 """
 
+import re
 import subprocess
 from typing import Dict
 
@@ -20,7 +21,12 @@ from flow_studio.domain.models import MemoryTelemetry
 
 
 class NativeMacOSTelemetryProvider(TelemetryProviderProtocol):
-    """Interrogates Darwin kernel subsystem for Unified RAM state."""
+    """Interrogates Darwin kernel subsystem for Unified RAM state.
+    
+    Calculates memory strictly identical to macOS Activity Monitor:
+    Memory Used = App Memory + Wired Memory + Compressed Memory
+    (Excluding file-backed disk cache / cached files)
+    """
 
     def get_memory_telemetry(self) -> MemoryTelemetry:
         try:
@@ -31,19 +37,40 @@ class NativeMacOSTelemetryProvider(TelemetryProviderProtocol):
             total_bytes = int(hw_raw.decode("utf-8").strip())
 
             # 2. Virtual Memory Page Statistics
-            vm_raw = subprocess.check_output(["vm_stat"], stderr=subprocess.DEVNULL)
+            vm_raw = subprocess.check_output(["vm_stat"], stderr=subprocess.DEVNULL).decode("utf-8")
+            lines = vm_raw.splitlines()
+
+            # Dynamic page size detection (Apple Silicon = 16384 bytes, Intel = 4096 bytes)
+            page_size = MACOS_PAGE_SIZE_BYTES
+            if lines and "page size of" in lines[0]:
+                m = re.search(r"page size of (\d+) bytes", lines[0])
+                if m:
+                    page_size = int(m.group(1))
+
             stats: Dict[str, int] = {}
-            for line in vm_raw.decode("utf-8").split("\n")[1:]:
+            for line in lines[1:]:
                 if ":" in line:
                     key, val = line.split(":", 1)
                     stats[key.strip()] = int(val.strip().rstrip("."))
 
-            # 3. Calculate unallocated and speculative memory
-            pages_free = stats.get("Pages free", 0)
-            pages_speculative = stats.get("Pages speculative", 0)
-            free_bytes = (pages_free + pages_speculative) * MACOS_PAGE_SIZE_BYTES
+            anon = stats.get("Anonymous pages", 0)
+            purgeable = stats.get("Pages purgeable", 0)
+            wired = stats.get("Pages wired down", 0)
+            compressed = stats.get("Pages occupied by compressor", 0)
+            file_backed = stats.get("File-backed pages", 0)
 
-            used_bytes = max(0, total_bytes - free_bytes)
+            # macOS Activity Monitor standard calculation:
+            # - App Memory: anonymous memory minus purgeable
+            # - Wired Memory: pinned kernel/framework memory
+            # - Compressed: pages occupied by the memory compressor
+            # - Memory Used = App Memory + Wired Memory + Compressed Memory
+            # (Note: Cached files = file_backed + purgeable pages, which is NOT counted as used memory)
+            app_bytes = max(0, anon - purgeable) * page_size
+            wired_bytes = wired * page_size
+            compressed_bytes = compressed * page_size
+            used_bytes = app_bytes + wired_bytes + compressed_bytes
+            cached_bytes = (file_backed + purgeable) * page_size
+
             used_gb = used_bytes / BYTES_PER_GIBIBYTE
             total_gb = total_bytes / BYTES_PER_GIBIBYTE
             utilization_pct = (used_bytes / total_bytes) * PERCENT_MULTIPLIER
@@ -52,6 +79,10 @@ class NativeMacOSTelemetryProvider(TelemetryProviderProtocol):
                 used_gb=used_gb,
                 total_gb=total_gb,
                 utilization_percent=utilization_pct,
+                app_gb=app_bytes / BYTES_PER_GIBIBYTE,
+                wired_gb=wired_bytes / BYTES_PER_GIBIBYTE,
+                compressed_gb=compressed_bytes / BYTES_PER_GIBIBYTE,
+                cached_gb=cached_bytes / BYTES_PER_GIBIBYTE,
             )
 
         except Exception:

@@ -55,6 +55,10 @@ class MemoryTelemetry:
     used_gb: float
     total_gb: float
     utilization_percent: float
+    app_gb: Optional[float] = None
+    wired_gb: Optional[float] = None
+    compressed_gb: Optional[float] = None
+    cached_gb: Optional[float] = None
 
     @property
     def used_gb_formatted(self) -> str:
@@ -69,11 +73,20 @@ class MemoryTelemetry:
         return f"{self.utilization_percent:.1f}"
 
     def to_dict(self) -> Dict[str, str]:
-        return {
+        res = {
             "used_gb": self.used_gb_formatted,
             "total_gb": self.total_gb_formatted,
             "percent": self.percent_formatted,
         }
+        if self.app_gb is not None:
+            res["app_gb"] = f"{self.app_gb:.2f}"
+        if self.wired_gb is not None:
+            res["wired_gb"] = f"{self.wired_gb:.2f}"
+        if self.compressed_gb is not None:
+            res["compressed_gb"] = f"{self.compressed_gb:.2f}"
+        if self.cached_gb is not None:
+            res["cached_gb"] = f"{self.cached_gb:.2f}"
+        return res
 
 
 @dataclass

@@ -8,6 +8,7 @@ import asyncio
 import json
 import os
 import shutil
+import sys
 import urllib.request
 from pathlib import Path
 from typing import AsyncGenerator
@@ -28,31 +29,57 @@ class FlowStreamingEngine(InferenceEngineProtocol):
 
     def _find_model_path(self, model_id: str) -> str | None:
         """Locate runnable model path, resolving .flow containers to their GGUF counterparts."""
-        # 1. If explicit .flow selected, map to matching runnable .gguf file
-        if model_id and str(model_id).endswith(".flow"):
+        if not model_id:
+            model_id = "auto"
+
+        # 1. If exact path exists
+        if os.path.exists(model_id):
+            p = Path(model_id).resolve()
+            # If it's a directory with config.json (MLX model)
+            if p.is_dir() and (p / "config.json").exists():
+                return str(p)
+            # If it's a .gguf
+            if p.suffix == ".gguf":
+                return str(p)
+            # If it's a .flow, check for counterpart .gguf
+            if str(p).endswith(".flow"):
+                candidate_names = [
+                    "DeepSeek-Coder-V2-Lite-Instruct-Pyrite-2bit.gguf",
+                    str(p).replace(".gguf.flow", ".gguf"),
+                    str(p).replace(".flow", ""),
+                ]
+                for search_dir in [self.models_dir, self.cache_dir, Path("/Volumes/NVMe2TB/AI-LLM/LLMjp/Pyrite/gguf"), Path("/Volumes/NVMe2TB/AI-LLM/models")]:
+                    for cname in candidate_names:
+                        cand = (search_dir / Path(cname).name).resolve()
+                        if cand.exists() and cand.suffix == ".gguf":
+                            return str(cand)
+
+        # 2. If model_id points to a .flow file
+        if str(model_id).endswith(".flow"):
             candidate_names = [
                 "DeepSeek-Coder-V2-Lite-Instruct-Pyrite-2bit.gguf",
                 str(model_id).replace(".gguf.flow", ".gguf"),
                 str(model_id).replace(".flow", ""),
             ]
-            for search_dir in [self.models_dir, self.cache_dir, Path("/Volumes/NVMe2TB/AI-LLM/LLMjp/Pyrite/gguf")]:
+            for search_dir in [self.models_dir, self.cache_dir, Path("/Volumes/NVMe2TB/AI-LLM/LLMjp/Pyrite/gguf"), Path("/Volumes/NVMe2TB/AI-LLM/models")]:
                 for cname in candidate_names:
                     cand = (search_dir / Path(cname).name).resolve()
                     if cand.exists() and cand.suffix == ".gguf":
                         return str(cand)
 
-        # 2. If exact path exists and is .gguf
-        if model_id and os.path.exists(model_id) and str(model_id).endswith(".gguf"):
-            return str(Path(model_id).resolve())
-
-        # 3. Search directory for any valid GGUF
-        for candidate_dir in [self.models_dir, self.cache_dir, Path("/Volumes/NVMe2TB/AI-LLM/LLMjp/Pyrite/gguf")]:
+        # 3. Search directories for any valid GGUF or MLX
+        search_dirs = [self.models_dir, self.cache_dir, Path("/Volumes/NVMe2TB/AI-LLM/LLMjp/Pyrite/gguf"), Path("/Volumes/NVMe2TB/AI-LLM/models")]
+        for candidate_dir in search_dirs:
             if not candidate_dir.exists():
                 continue
             for cand in candidate_dir.glob("*.gguf"):
                 resolved = cand.resolve()
                 if resolved.exists():
                     return str(resolved)
+            for cand in candidate_dir.iterdir():
+                if cand.is_dir() and (cand / "config.json").exists():
+                    return str(cand.resolve())
+
         return None
 
     async def stream_tokens(
@@ -65,16 +92,22 @@ class FlowStreamingEngine(InferenceEngineProtocol):
 
         # 1. If explicit Ollama model selected
         if "qwen" in model_id or "ornith" in model_id:
-            async for token in self._stream_ollama(prompt, model_id, max_tokens, request.temperature):
+            selected_ollama = "qwen3.5:9b-mlx" if "qwen" in model_id else "ornith-1.5:9b"
+            async for token in self._stream_ollama(prompt, selected_ollama, max_tokens, request.temperature):
                 yield token
             return
 
-        # 2. Local FLOW / GGUF model via llama-cli
+        # 2. Local Model (GGUF, FLOW, or MLX)
         target_model = self._find_model_path(request.model_id)
-        if target_model and os.path.exists(self.llama_cli_path):
-            model_basename = Path(target_model).name
 
-            # Format with proper instruct template for DeepSeek / Coder
+        # Check if MLX Directory
+        if target_model and os.path.isdir(target_model) and (Path(target_model) / "config.json").exists():
+            async for token in self._stream_mlx(prompt, target_model, max_tokens, request.temperature):
+                yield token
+            return
+
+        # Check if GGUF / FLOW file
+        if target_model and os.path.exists(self.llama_cli_path):
             if "deepseek" in target_model.lower():
                 formatted_prompt = f"<｜User｜>{prompt}\n\n（日本語で分かりやすく簡潔に回答してください）<｜Assistant｜>"
             else:
@@ -149,8 +182,39 @@ class FlowStreamingEngine(InferenceEngineProtocol):
         # 4. Inform user
         yield (
             "【FLOW Engine】利用可能なモデルファイルが検出されませんでした。\n"
-            f"models/ ディレクトリ ({self.models_dir}) に .gguf または .flow のシンボリックリンクを配置してください。"
+            f"models/ ディレクトリ ({self.models_dir}) またはサイドバーの「任意のパスから追加」でモデルを指定してください。"
         )
+
+    async def _stream_mlx(
+        self, prompt: str, model_path: str, max_tokens: int, temperature: float | None
+    ) -> AsyncGenerator[str, None]:
+        """Stream inference from MLX model directory (e.g. Mixtral, Qwen MLX)."""
+        cmd = [
+            sys.executable,
+            "-m", "mlx_lm.generate",
+            "--model", model_path,
+            "--prompt", prompt,
+            "--max-tokens", str(max_tokens),
+            "--temp", str(temperature or 0.6),
+            "--verbose", "False"
+        ]
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL
+            )
+            while True:
+                line = await proc.stdout.readline()
+                if not line:
+                    break
+                text = line.decode("utf-8", errors="replace")
+                if "Prompt:" in text or "Generation:" in text or "Peak memory:" in text:
+                    continue
+                yield text
+            await proc.wait()
+        except Exception as e:
+            yield f"\n[MLX Inference Error: {e}]\n"
 
     async def _check_ollama(self) -> bool:
         try:
