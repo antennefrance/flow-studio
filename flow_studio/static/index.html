@@ -279,13 +279,20 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
                 const reader = res.body.getReader();
                 const decoder = new TextDecoder();
                 assistantMsg.innerText = '';
+                let hasReceivedContent = false;
 
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
                     const chunk = decoder.decode(value);
-                    assistantMsg.innerText += chunk;
-                    msgs.scrollTop = msgs.scrollHeight;
+                    if (chunk) {
+                        hasReceivedContent = true;
+                        assistantMsg.innerText += chunk;
+                        msgs.scrollTop = msgs.scrollHeight;
+                    }
+                }
+                if (!hasReceivedContent) {
+                    assistantMsg.innerText = '（応答がありませんでした。モデルのログを確認してください）';
                 }
             } catch(e) {
                 assistantMsg.innerHTML += `<br><span style="color:#f87171;">エラー: ローカル推論エンジン(${API_BASE})への接続に失敗しました</span>`;

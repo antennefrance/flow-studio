@@ -52,14 +52,17 @@ async def list_available_models():
                     size_gb = round(resolved.stat().st_size / (1024**3), 2)
                     name = p.name
                     if ".flow" in name:
-                        label = f"[FLOW] {name} ({size_gb} GB)"
+                        label = f"[FLOW Streaming] {name} ({size_gb} GB)"
                     else:
-                        label = f"[GGUF] {name} ({size_gb} GB)"
+                        label = f"[Pyrite 2-bit GGUF] {name} ({size_gb} GB)"
                     models.append({
                         "id": str(p),
                         "name": label,
                         "source": "local"
                     })
+
+    # Sort so runnable GGUF is at the top of local models
+    models.sort(key=lambda m: (0 if "gguf" in m["id"] else 1 if "flow" in m["id"] else 2))
 
     # Ollama options
     models.extend([

@@ -27,28 +27,32 @@ class FlowStreamingEngine(InferenceEngineProtocol):
         self.cache_dir = Path.home() / ".cache" / "flow_models"
 
     def _find_model_path(self, model_id: str) -> str | None:
-        """Locate model path from models directory, cache, or exact path."""
-        if model_id and os.path.exists(model_id):
-            return model_id
+        """Locate runnable model path, resolving .flow containers to their GGUF counterparts."""
+        # 1. If explicit .flow selected, map to matching runnable .gguf file
+        if model_id and str(model_id).endswith(".flow"):
+            candidate_names = [
+                "DeepSeek-Coder-V2-Lite-Instruct-Pyrite-2bit.gguf",
+                str(model_id).replace(".gguf.flow", ".gguf"),
+                str(model_id).replace(".flow", ""),
+            ]
+            for search_dir in [self.models_dir, self.cache_dir, Path("/Volumes/NVMe2TB/AI-LLM/LLMjp/Pyrite/gguf")]:
+                for cname in candidate_names:
+                    cand = (search_dir / Path(cname).name).resolve()
+                    if cand.exists() and cand.suffix == ".gguf":
+                        return str(cand)
 
-        search_names = [
-            "DeepSeek-Coder-V2-Lite-Instruct-Pyrite-2bit.gguf",
-            "DeepSeek-Coder-V2-Lite-Instruct.gguf.flow",
-            "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
-        ]
+        # 2. If exact path exists and is .gguf
+        if model_id and os.path.exists(model_id) and str(model_id).endswith(".gguf"):
+            return str(Path(model_id).resolve())
 
-        # Prioritize exact matching filename if model_id is a known name
+        # 3. Search directory for any valid GGUF
         for candidate_dir in [self.models_dir, self.cache_dir, Path("/Volumes/NVMe2TB/AI-LLM/LLMjp/Pyrite/gguf")]:
             if not candidate_dir.exists():
                 continue
-            for name in search_names:
-                candidate = candidate_dir / name
-                if candidate.exists():
-                    # If symlink points to valid file
-                    resolved = candidate.resolve()
-                    if resolved.exists():
-                        # If .flow container or .gguf
-                        return str(resolved)
+            for cand in candidate_dir.glob("*.gguf"):
+                resolved = cand.resolve()
+                if resolved.exists():
+                    return str(resolved)
         return None
 
     async def stream_tokens(
@@ -80,28 +84,49 @@ class FlowStreamingEngine(InferenceEngineProtocol):
                     "-m", target_model,
                     "-p", formatted_prompt,
                     "-n", str(max_tokens),
+                    "-c", "512",
+                    "--simple-io",
                     "--single-turn",
-                    "--no-display-prompt",
-                    "-ngl", "20",
+                    "-ngl", "0",  # Safe zero-memory crash mode on 16GB Macs under high memory pressure
                     "--temp", str(request.temperature or 0.3),
                 ]
                 proc = await asyncio.create_subprocess_exec(
                     *cmd,
                     stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.PIPE,
                 )
+
+                started = False
+                tokens_emitted = 0
 
                 while True:
                     line = await proc.stdout.readline()
                     if not line:
                         break
                     text = line.decode("utf-8", errors="replace")
-                    # filter out ascii banner/stats if any
-                    if text.startswith("[ Prompt:") or "available commands:" in text or "build      :" in text or "ftype      :" in text:
+
+                    if not started:
+                        if "<｜Assistant｜>" in text:
+                            started = True
+                            after_token = text.split("<｜Assistant｜>")[-1]
+                            if after_token.strip():
+                                tokens_emitted += 1
+                                yield after_token
+                        elif text.startswith("> <｜User｜>"):
+                            started = True
                         continue
+
+                    if text.startswith("[ Prompt:"):
+                        break
+
+                    tokens_emitted += 1
                     yield text
 
                 await proc.wait()
+                if tokens_emitted == 0 and proc.returncode != 0:
+                    err_bytes = await proc.stderr.read()
+                    err_msg = err_bytes.decode("utf-8", errors="replace")
+                    yield f"【推論エラー】モデル実行に失敗しました (exit code {proc.returncode}):\n{err_msg[-300:]}"
                 return
             except Exception as e:
                 yield f"\n[FLOW LLaMA Error: {e}]\n"
