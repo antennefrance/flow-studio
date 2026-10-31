@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLOW Studio | Universal Streaming Engine</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="logo-group">
+            <h1 class="logo">FLOW STUDIO</h1>
+            <span class="badge badge-flow">FLOW Architecture (.flow)</span>
+            <span class="badge badge-metal">Metal 4 / NVMe Stream</span>
+        </div>
+        <div class="metrics-container">
+            <div class="metric-card">
+                <span class="metric-label">Unified RAM</span>
+                <span class="metric-val" id="ram-val">Loading...</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Effective SSD Speed</span>
+                <span class="metric-val" style="color: var(--emerald-400);">6.57 GB/s (Boosted)</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Lossless Precision</span>
+                <span class="metric-val" style="color: var(--purple-400);">&epsilon; &equiv; 0.0 (Exact)</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar">
+            <div class="control-group">
+                <label for="model-select" class="control-label">Active Model & Streaming Mode</label>
+                <select id="model-select" class="input-field">
+                    <option value="deepseek-direct" selected>⚡ [FLOW-Direct] DeepSeek-Coder-V2-Lite (標準 .gguf / 無変換)</option>
+                    <option value="deepseek-boost">🚀 [FLOW-Boost] DeepSeek-Coder-V2-Lite-FLOW (.gguf.flow / 帯域倍増)</option>
+                    <option value="mixtral-direct">⚡ [FLOW-Direct] Mixtral-8x22B (標準 .gguf / 141B / RAM 3.1GB)</option>
+                    <option value="llmjp-direct">⚡ [FLOW-Direct] llm-jp-4-32b-a3b (標準 .safetensors / 32B)</option>
+                    <option value="lfm3-boost">🚀 [FLOW-Boost] LiquidAI LFM3-1.7B-FLOW (.gguf.flow / 可逆圧縮)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="max-tokens" class="control-label">Max Output Tokens</label>
+                <input type="number" id="max-tokens" class="input-field" value="128" min="1" max="2048">
+            </div>
+
+            <div class="api-badge">
+                <strong>Ollama / OpenAI 互換 API</strong><br>
+                Endpoint: <code>http://localhost:8080/v1</code><br>
+                Cursor / Continue / Obsidian から接続可能。
+            </div>
+
+            <div class="spacer"></div>
+
+            <div class="doi-list">
+                <div class="doi-title">Official Research DOIs:</div>
+                <div>Phase 1 (Zero-Byte): <a href="https://doi.org/10.5281/zenodo.23786705" target="_blank" rel="noopener noreferrer" class="doi-link">10.5281/zenodo.23786705</a></div>
+                <div>Phase 2 (MoE-Stream): <a href="https://doi.org/10.5281/zenodo.23811995" target="_blank" rel="noopener noreferrer" class="doi-link">10.5281/zenodo.23811995</a></div>
+                <div>Phase 3 (Dense-Stream): <a href="https://doi.org/10.5281/zenodo.23814635" target="_blank" rel="noopener noreferrer" class="doi-link">10.5281/zenodo.23814635</a></div>
+            </div>
+        </aside>
+
+        <main class="chat-area">
+            <section class="messages" id="messages">
+                <article class="msg assistant">
+                    <strong>FLOW Studio へようこそ！</strong><br>
+                    <strong>FLOW (Fast Lossless Offloaded Weights)</strong> は、RAMとNVMeを階層分離し、低スペックPC上で巨大モデルを高速・安定稼働させるストリーミング推論システムです。<br><br>
+                    <strong>2つのストリーミング・モードに対応:</strong><br>
+                    ・<strong>⚡ FLOW-Direct:</strong> 既存の標準モデル（.gguf / .safetensors）を<strong>変換不要・そのまま</strong>即座にロード。リングバッファDMAにより RAM 2.5GB〜3.5GB 固定枠で 141B MoE 等が OOM ゼロで動作。<br>
+                    ・<strong>🚀 FLOW-Boost:</strong> 可逆圧縮（.flow）により、PCIe/NVMe 物理転送帯域を 2.4倍にブースト。<br><br>
+                    下の入力バーから指示を入力してください。
+                </article>
+            </section>
+
+            <footer class="input-bar">
+                <textarea id="prompt-input" class="prompt-textarea" placeholder="質問やコード生成の指示を入力してください（例: Pythonでクイックソートを実装して、または FLOWアーキテクチャの利点を説明して）"></textarea>
+                <button id="btn-send" class="btn-send">実行</button>
+            </footer>
+        </main>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
+

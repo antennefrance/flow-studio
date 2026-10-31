@@ -1,0 +1,33 @@
+# Large weights & binary models
+models_flow/
+*.gguf
+*.gguf.flow
+*.safetensors
+*.safetensors.flow
+*.bin
+
+# Local experiment directories and model caches
+pyrite-mlx/
+llama.cpp/
+dense_stream/
+moe_stream/
+gguf/
+gguf_repo/
+lfm3_project/
+paper_arxiv_bundle/
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+
+# Tauri / Rust build artifacts
+flow_studio_desktop/src-tauri/target/
+node_modules/
+
+# OS specific files
+.DS_Store
+Thumbs.db

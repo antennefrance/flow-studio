@@ -1,0 +1,13 @@
+{
+  "name": "flow-studio",
+  "version": "1.0.0",
+  "description": "FLOW Studio Desktop - Universal Streaming AI Engine for Apple Silicon",
+  "private": true,
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  }
+}
+
