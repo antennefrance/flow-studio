@@ -44,10 +44,13 @@ class FlowStreamingEngine(InferenceEngineProtocol):
             # If it's a .flow, check for counterpart .gguf
             if str(p).endswith(".flow"):
                 candidate_names = [
-                    "DeepSeek-Coder-V2-Lite-Instruct-Pyrite-2bit.gguf",
                     str(p).replace(".gguf.flow", ".gguf"),
                     str(p).replace(".flow", ""),
+                    Path(p.name).stem,
                 ]
+                if "deepseek" in p.name.lower():
+                    candidate_names.append("DeepSeek-Coder-V2-Lite-Instruct-Pyrite-2bit.gguf")
+
                 for search_dir in [self.models_dir, self.cache_dir, Path("/Volumes/NVMe2TB/AI-LLM/LLMjp/Pyrite/gguf"), Path("/Volumes/NVMe2TB/AI-LLM/models")]:
                     for cname in candidate_names:
                         cand = (search_dir / Path(cname).name).resolve()
@@ -57,10 +60,13 @@ class FlowStreamingEngine(InferenceEngineProtocol):
         # 2. If model_id points to a .flow file
         if str(model_id).endswith(".flow"):
             candidate_names = [
-                "DeepSeek-Coder-V2-Lite-Instruct-Pyrite-2bit.gguf",
                 str(model_id).replace(".gguf.flow", ".gguf"),
                 str(model_id).replace(".flow", ""),
+                Path(model_id).name.replace(".flow", ""),
             ]
+            if "deepseek" in model_id.lower():
+                candidate_names.append("DeepSeek-Coder-V2-Lite-Instruct-Pyrite-2bit.gguf")
+
             for search_dir in [self.models_dir, self.cache_dir, Path("/Volumes/NVMe2TB/AI-LLM/LLMjp/Pyrite/gguf"), Path("/Volumes/NVMe2TB/AI-LLM/models")]:
                 for cname in candidate_names:
                     cand = (search_dir / Path(cname).name).resolve()
@@ -149,15 +155,24 @@ class FlowStreamingEngine(InferenceEngineProtocol):
                             if after_token.strip():
                                 tokens_emitted += 1
                                 yield after_token
-                        elif text.startswith("> <｜User｜>"):
+                            continue
+                        elif "Assistant:" in text:
                             started = True
+                            after_token = text.split("Assistant:")[-1]
+                            if after_token.strip():
+                                tokens_emitted += 1
+                                yield after_token
+                            continue
+                        elif text.startswith(">"):
+                            started = True
+                            continue
                         continue
 
                     if text.startswith("[ Prompt:"):
                         break
 
                     # Guard against repeating prompt leaks
-                    if "（日本語で分かりやすく簡潔に回答してください）" in text or "<｜Assistant｜>" in text:
+                    if "（日本語で分かりやすく簡潔に回答してください）" in text or "<｜Assistant｜>" in text or "Assistant:" in text:
                         continue
 
                     tokens_emitted += 1
