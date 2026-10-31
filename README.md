@@ -39,7 +39,11 @@ Conventional inference runtimes (llama.cpp, vLLM, transformers) presuppose that 
 
 ## 🚀 Quick Start
 
-### 1. One-Click Launchers (Zero Terminal Setup)
+### 1. Download macOS Native App (.dmg Installer)
+Download **[`FLOW_Studio_1.0.0_macOS_Installer.dmg`](FLOW_Studio_1.0.0_macOS_Installer.dmg)** (3.16 MB) directly from this repository or the [Releases page](https://github.com/antennefrance/flow-studio/releases).  
+*Native Apple Silicon app, signed by `Developer ID Application: L'ASSOCIATION A BUT NON LUCRATIF ANTENNEFRANCE`.*
+
+### 2. One-Click Launchers (No Terminal Required)
 
 * **macOS (Apple Silicon M1/M2/M3/M4):**  
   Double-click **`FLOW_Studio.command`** in Finder.  
@@ -49,11 +53,11 @@ Conventional inference runtimes (llama.cpp, vLLM, transformers) presuppose that 
   Double-click **`FLOW_Studio.bat`** in Windows Explorer.  
   *(Auto-detects Win32 memory telemetry via `GlobalMemoryStatusEx` and launches the UI).*
 
-### 2. Manual CLI Launch
+### 3. Manual CLI Launch
 
 ```bash
 # Clone the repository
-git clone https://github.com/masahiroid/flow-studio.git
+git clone https://github.com/antennefrance/flow-studio.git
 cd flow-studio
 
 # Install lightweight dependencies
@@ -62,6 +66,13 @@ pip install -r requirements.txt
 # Start the universal server (Default: Port 8080)
 python pyrite_app.py
 ```
+
+---
+
+## 📚 Documentation
+
+* 📘 [User Guide & Setup Instructions](docs/USER_GUIDE.md)
+* 🔌 [Local OpenAI/Ollama Compatible API Reference](docs/API.md)
 
 Open your browser at `http://127.0.0.1:8080`.
 

@@ -28,7 +28,6 @@ venv/
 flow_studio_desktop/src-tauri/target/
 flow_studio_desktop/src-tauri/gen/
 node_modules/
-*.dmg
 
 # OS specific files
 .DS_Store
