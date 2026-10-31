@@ -19,50 +19,69 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; user-select: none; }
         body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; -webkit-app-region: drag; }
+        
+        /* Top Navigation Bar with macOS Window Drag Support */
+        header { 
+            background: var(--surface); 
+            border-bottom: 1px solid var(--border); 
+            padding: 12px 20px; 
+            padding-left: 80px; /* Space for macOS native traffic light window buttons */
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            -webkit-app-region: drag; 
+            cursor: default;
+        }
+        header * { -webkit-app-region: drag; }
         .logo-group { display: flex; align-items: center; gap: 12px; }
         .logo { font-size: 1.25rem; font-weight: 800; background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .badge { font-size: 0.70rem; padding: 2px 8px; border-radius: 999px; font-weight: 700; }
         .badge-flow { background: rgba(6, 182, 212, 0.15); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.35); }
         .badge-metal { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); }
         .metrics { display: flex; gap: 12px; font-size: 0.82rem; }
-        .metric-card { background: rgba(0,0,0,0.35); border: 1px solid var(--border); padding: 4px 12px; border-radius: 8px; display: flex; flex-direction: column; }
+        .metric-card { background: rgba(0,0,0,0.35); border: 1px solid var(--border); padding: 4px 14px; border-radius: 8px; display: flex; flex-direction: column; }
         .metric-card span:first-child { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; font-weight: 600; }
         .metric-val { font-weight: 700; color: #38bdf8; }
+
+        /* Prevent dragging on interactive elements */
+        button, select, input, textarea, a { -webkit-app-region: no-drag; }
+
         .main-container { flex: 1; display: flex; overflow: hidden; }
-        .sidebar { width: 300px; background: var(--surface); border-right: 1px solid var(--border); padding: 18px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+        .sidebar { width: 320px; background: var(--surface); border-right: 1px solid var(--border); padding: 18px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
         .sidebar label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
         select, input { width: 100%; background: #07090e; border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 8px; margin-top: 4px; font-size: 0.85rem; outline: none; }
         select:focus, input:focus { border-color: var(--accent); }
+        
+        .hf-download-box { background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+        .btn-action { background: #2563eb; color: #fff; border: none; padding: 7px 12px; border-radius: 6px; font-size: 0.80rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .btn-action:hover { background: #1d4ed8; }
+        .btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
+        #download-status { font-size: 0.75rem; line-height: 1.4; color: #38bdf8; word-break: break-all; }
+
         .api-badge { background: #1e2438; border: 1px dashed var(--border); padding: 8px 10px; border-radius: 8px; font-size: 0.78rem; line-height: 1.4; color: #cbd5e1; }
         .api-badge code { color: #38bdf8; font-family: ui-monospace, monospace; }
+        
         .chat-area { flex: 1; display: flex; flex-direction: column; background: var(--bg); }
         .messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; user-select: text; }
-        .msg { max-width: 82%; padding: 12px 16px; border-radius: 12px; line-height: 1.6; font-size: 0.92rem; }
+        .msg { max-width: 85%; padding: 12px 16px; border-radius: 12px; line-height: 1.6; font-size: 0.92rem; word-break: break-word; }
         .msg.user { align-self: flex-end; background: #2563eb; color: #fff; border-bottom-right-radius: 2px; }
         .msg.assistant { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 2px; }
         .input-bar { padding: 14px 20px; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 10px; }
         .input-bar textarea { flex: 1; background: #07090e; border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 8px; resize: none; height: 46px; font-size: 0.92rem; outline: none; user-select: text; }
         .btn-send { background: linear-gradient(135deg, #2563eb, #3b82f6); border: none; color: white; padding: 0 20px; border-radius: 8px; font-weight: 700; cursor: pointer; }
-        .doi-list { font-size: 0.72rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 12px; }
-        .doi-list a { color: #60a5fa; text-decoration: none; }
     </style>
 </head>
 <body>
-    <header>
-        <div class="logo-group">
-            <div class="logo">FLOW STUDIO</div>
-            <div class="badge badge-flow">Desktop Native</div>
-            <div class="badge badge-metal">RAM &lt; 3.0 GB</div>
+    <header data-tauri-drag-region>
+        <div class="logo-group" data-tauri-drag-region>
+            <div class="logo" data-tauri-drag-region>FLOW STUDIO</div>
+            <div class="badge badge-flow" data-tauri-drag-region>Desktop Native</div>
+            <div class="badge badge-metal" data-tauri-drag-region>RAM Streaming</div>
         </div>
-        <div class="metrics">
-            <div class="metric-card">
-                <span>Unified RAM</span>
-                <span class="metric-val" id="ram-val">Loading...</span>
-            </div>
-            <div class="metric-card">
-                <span>Effective SSD Speed</span>
-                <span class="metric-val" style="color: #34d399;">6.57 GB/s</span>
+        <div class="metrics" data-tauri-drag-region>
+            <div class="metric-card" data-tauri-drag-region>
+                <span data-tauri-drag-region>Unified Memory</span>
+                <span class="metric-val" id="ram-val" data-tauri-drag-region>Loading...</span>
             </div>
         </div>
     </header>
@@ -70,38 +89,40 @@
     <div class="main-container">
         <div class="sidebar">
             <div>
-                <label>Active FLOW Model</label>
+                <label>Active Model</label>
                 <select id="model-select">
-                    <option value="deepseek" selected>DeepSeek-Coder-V2-Lite-FLOW (15.7B)</option>
-                    <option value="mixtral">Mixtral-8x22B-FLOW (141B MoE / RAM 3.1GB)</option>
-                    <option value="lfm3">LiquidAI LFM3-1.7B-FLOW (715 MB)</option>
-                    <option value="llmjp">llm-jp-4-32b-a3b-FLOW (32.5B Dense)</option>
+                    <option value="auto" selected>Auto Detect (Ollama / LLaMA / MLX)</option>
+                    <option value="deepseek-flow">DeepSeek-Coder-V2-Lite-FLOW (15.7B)</option>
+                    <option value="qwen3.5:9b-mlx">Qwen-3.5-9B (Ollama)</option>
+                    <option value="ornith-1.5:9b">Ornith-1.5-9B (Ollama)</option>
                 </select>
             </div>
+            
             <div>
                 <label>Max Output Tokens</label>
-                <input type="number" id="max-tokens" value="128" min="1" max="1024">
+                <input type="number" id="max-tokens" value="256" min="1" max="2048">
+            </div>
+
+            <div class="hf-download-box">
+                <label>Hugging Face Download</label>
+                <input type="text" id="hf-repo" placeholder="Repo: masahiroid/DeepSeek-Coder-V2-Lite-FLOW">
+                <input type="text" id="hf-file" placeholder="File (optional, e.g. *.flow / *.gguf)">
+                <button class="btn-action" id="btn-download" onclick="downloadHfModel()">Download from Hub</button>
+                <div id="download-status" style="display:none;"></div>
             </div>
 
             <div class="api-badge">
                 <strong>Local Server Active</strong><br>
                 API: <code>http://localhost:8080/v1</code>
             </div>
-
-            <div style="flex: 1;"></div>
-            <div class="doi-list">
-                <div>Phase 1: <a href="https://doi.org/10.5281/zenodo.23786705" target="_blank">10.5281/zenodo.23786705</a></div>
-                <div>Phase 2: <a href="https://doi.org/10.5281/zenodo.23811995" target="_blank">10.5281/zenodo.23811995</a></div>
-                <div>Phase 3: <a href="https://doi.org/10.5281/zenodo.23814635" target="_blank">10.5281/zenodo.23814635</a></div>
-            </div>
         </div>
 
         <div class="chat-area">
             <div class="messages" id="messages">
                 <div class="msg assistant">
-                    <strong>FLOW Studio Native Desktop</strong><br>
-                    Tauri / WebKit による極小フットプリント（RAM ~25MB）で動作するネイティブ版クライアントです。<br>
-                    プロンプトを入力して実行してください。
+                    <strong>FLOW Studio Native</strong><br>
+                    RAMとNVMeを階層分離して超省メモリで大規模モデルを動かすデスクトップ環境です。<br>
+                    プロンプトを入力して会話を開始できます。
                 </div>
             </div>
             <div class="input-bar">
@@ -124,23 +145,79 @@
         setInterval(updateTelemetry, 2000);
         updateTelemetry();
 
+        async function refreshModels() {
+            try {
+                const res = await fetch(`${API_BASE}/api/models`);
+                const data = await res.json();
+                const sel = document.getElementById('model-select');
+                const cur = sel.value;
+                sel.innerHTML = '';
+                data.models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.id;
+                    opt.innerText = m.name;
+                    sel.appendChild(opt);
+                });
+                if (cur) sel.value = cur;
+            } catch(e) {}
+        }
+        refreshModels();
+
+        async function downloadHfModel() {
+            const repoInput = document.getElementById('hf-repo');
+            const fileInput = document.getElementById('hf-file');
+            const btn = document.getElementById('btn-download');
+            const statusDiv = document.getElementById('download-status');
+
+            const repo = repoInput.value.trim();
+            const filename = fileInput.value.trim() || null;
+
+            if (!repo) {
+                alert("Hugging Face リポジトリ名を入力してください（例: masahiroid/DeepSeek-Coder-V2-Lite-FLOW）");
+                return;
+            }
+
+            btn.disabled = true;
+            statusDiv.style.display = 'block';
+            statusDiv.innerText = `⏳ ダウンロード中: ${repo} ...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/models/download`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ repo_id: repo, filename: filename })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    statusDiv.innerHTML = `<span style="color:#34d399;">✓ 完了: ${data.message}</span>`;
+                    await refreshModels();
+                } else {
+                    statusDiv.innerHTML = `<span style="color:#f87171;">✕ エラー: ${data.detail || 'ダウンロード失敗'}</span>`;
+                }
+            } catch(err) {
+                statusDiv.innerHTML = `<span style="color:#f87171;">✕ 接続エラー: ${err.message}</span>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
         async function sendPrompt() {
             const input = document.getElementById('prompt-input');
             const prompt = input.value.trim();
             if (!prompt) return;
 
             const msgs = document.getElementById('messages');
-            msgs.innerHTML += `<div class="msg user">${prompt}</div>`;
+            msgs.innerHTML += `<div class="msg user">${prompt.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
             input.value = '';
 
             const assistantMsg = document.createElement('div');
             assistantMsg.className = 'msg assistant';
-            assistantMsg.innerHTML = '<em>⚡ FLOW ストリーミング生成中...</em>';
+            assistantMsg.innerHTML = '<em>⚡ 生成中...</em>';
             msgs.appendChild(assistantMsg);
             msgs.scrollTop = msgs.scrollHeight;
 
             const model = document.getElementById('model-select').value;
-            const maxTokens = parseInt(document.getElementById('max-tokens').value) || 128;
+            const maxTokens = parseInt(document.getElementById('max-tokens').value) || 256;
 
             try {
                 const res = await fetch(`${API_BASE}/api/generate`, {
@@ -157,7 +234,7 @@
                     const { value, done } = await reader.read();
                     if (done) break;
                     const chunk = decoder.decode(value);
-                    assistantMsg.innerHTML += chunk.replace(/\\n/g, '<br>');
+                    assistantMsg.innerText += chunk;
                     msgs.scrollTop = msgs.scrollHeight;
                 }
             } catch(e) {
@@ -167,4 +244,3 @@
     </script>
 </body>
 </html>
-

@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from flow_studio.api.routes_chat import router as chat_router
+from flow_studio.api.routes_models import router as models_router
 from flow_studio.api.routes_openai import router as openai_router
 from flow_studio.api.routes_telemetry import router as telemetry_router
 from flow_studio.api.routes_ui import router as ui_router
@@ -44,6 +45,7 @@ def create_app() -> FastAPI:
     app.include_router(ui_router)
     app.include_router(telemetry_router)
     app.include_router(chat_router)
+    app.include_router(models_router)
     app.include_router(openai_router)
 
     return app
