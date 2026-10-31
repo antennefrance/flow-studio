@@ -95,24 +95,27 @@ async def list_available_models():
         try:
             # Check directory items
             for p in search_dir.iterdir():
-                # Direct model files or symlinks
-                if p.is_file() or p.is_symlink():
-                    resolved = p.resolve()
-                    if resolved.exists() and resolved not in seen:
-                        if resolved.suffix in [".gguf", ".flow"] or ".gguf.flow" in resolved.name:
-                            entry = _format_model_entry(p, search_dir)
-                            if entry:
-                                seen.add(resolved)
-                                models.append(entry)
-                # Subdirectories (e.g. MLX model directories or nested models)
-                elif p.is_dir():
-                    if (p / "config.json").exists() and p.resolve() not in seen:
+                resolved = p.resolve()
+                if not resolved.exists() or resolved in seen:
+                    continue
+
+                # File or Symlink to file (.gguf or .flow)
+                if resolved.is_file():
+                    if resolved.suffix in [".gguf", ".flow"] or ".gguf.flow" in resolved.name:
                         entry = _format_model_entry(p, search_dir)
                         if entry:
-                            seen.add(p.resolve())
+                            seen.add(resolved)
+                            models.append(entry)
+
+                # Directory or Symlink to directory (e.g. MLX / HF models with config.json)
+                elif resolved.is_dir():
+                    if (resolved / "config.json").exists():
+                        entry = _format_model_entry(p, search_dir)
+                        if entry:
+                            seen.add(resolved)
                             models.append(entry)
                     else:
-                        for sub_p in p.glob("*.gguf"):
+                        for sub_p in resolved.glob("*.gguf"):
                             if sub_p.resolve() not in seen:
                                 entry = _format_model_entry(sub_p, search_dir)
                                 if entry:
