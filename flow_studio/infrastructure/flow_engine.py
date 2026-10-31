@@ -182,7 +182,24 @@ class FlowStreamingEngine(InferenceEngineProtocol):
                 if tokens_emitted == 0 and proc.returncode != 0:
                     err_bytes = await proc.stderr.read()
                     err_msg = err_bytes.decode("utf-8", errors="replace")
-                    yield f"【推論エラー】モデル実行に失敗しました (exit code {proc.returncode}):\n{err_msg[-300:]}"
+
+                    if "unknown model architecture" in err_msg:
+                        import re
+                        m = re.search(r"unknown model architecture: '([^']+)'", err_msg)
+                        arch_name = m.group(1) if m else "未対応"
+                        yield (
+                            f"【非対応アーキテクチャ: '{arch_name}'】\n"
+                            f"このモデルファイルはアーキテクチャ '{arch_name}' を使用しているため、llama.cpp 実行エンジンでは読み込めません。\n\n"
+                            "💡 解決策:\n"
+                            "左側のセレクターから、動作確認済みの対応モデル（[FLOW] DeepSeek-Coder-V2, [FLOW] Llama-3.2, [FLOW] Phi-3 など）を選択して実行してください。"
+                        )
+                    elif "out of memory" in err_msg.lower() or "metal" in err_msg.lower():
+                        yield (
+                            "【メモリ不足エラー】Unified Memory の割り当てに失敗しました。\n"
+                            "左側の「⚡ Release RAM / メモリ完全開放」ボタンを押して不要なキャッシュを開放してから再度実行してください。"
+                        )
+                    else:
+                        yield f"【推論エラー】モデル実行に失敗しました (exit code {proc.returncode}):\n{err_msg[-300:]}"
                 return
             except Exception as e:
                 yield f"\n[FLOW LLaMA Error: {e}]\n"

@@ -48,7 +48,11 @@ class DownloadStatusResponse(BaseModel):
     local_path: Optional[str] = None
 
 
-def _format_model_entry(p: Path, search_dir: Path) -> Dict[str, Any]:
+def _format_model_entry(p: Path, search_dir: Path) -> Optional[Dict[str, Any]]:
+    # Exclude known unsupported experimental models like LiquidAI LFM (not supported by llama.cpp runtime)
+    if "lfm" in p.name.lower() or "lfm3" in p.name.lower():
+        return None
+
     resolved = p.resolve()
     size_gb = round(resolved.stat().st_size / (1024**3), 2) if resolved.is_file() else 0.0
     name = p.name
@@ -96,18 +100,24 @@ async def list_available_models():
                     resolved = p.resolve()
                     if resolved.exists() and resolved not in seen:
                         if resolved.suffix in [".gguf", ".flow"] or ".gguf.flow" in resolved.name:
-                            seen.add(resolved)
-                            models.append(_format_model_entry(p, search_dir))
+                            entry = _format_model_entry(p, search_dir)
+                            if entry:
+                                seen.add(resolved)
+                                models.append(entry)
                 # Subdirectories (e.g. MLX model directories or nested models)
                 elif p.is_dir():
                     if (p / "config.json").exists() and p.resolve() not in seen:
-                        seen.add(p.resolve())
-                        models.append(_format_model_entry(p, search_dir))
+                        entry = _format_model_entry(p, search_dir)
+                        if entry:
+                            seen.add(p.resolve())
+                            models.append(entry)
                     else:
                         for sub_p in p.glob("*.gguf"):
                             if sub_p.resolve() not in seen:
-                                seen.add(sub_p.resolve())
-                                models.append(_format_model_entry(sub_p, search_dir))
+                                entry = _format_model_entry(sub_p, search_dir)
+                                if entry:
+                                    seen.add(sub_p.resolve())
+                                    models.append(entry)
         except Exception:
             continue
 
