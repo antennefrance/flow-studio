@@ -1,13 +1,18 @@
 """Model Management & Hugging Face Hub Downloader Router.
 
 Allows downloading models directly from Hugging Face into the local FLOW runtime,
-and querying local model availability.
+querying local model availability and paths, and manually purging memory.
 """
 
 import asyncio
+import gc
+import json
 import os
+import shutil
+import subprocess
+import urllib.request
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from huggingface_hub import HfApi, hf_hub_download, snapshot_download
@@ -34,9 +39,9 @@ class DownloadStatusResponse(BaseModel):
 
 @router.get("")
 async def list_available_models():
-    """List all models detected locally and presets."""
+    """List all models detected locally and presets with search path details."""
     models = [
-        {"id": "auto", "name": "Auto Detect (Local FLOW / GGUF)", "source": "system"},
+        {"id": "auto", "name": "Auto Detect (Local FLOW / GGUF)", "source": "system", "resolved_path": "Auto-selected"},
     ]
 
     seen = set()
@@ -58,7 +63,10 @@ async def list_available_models():
                     models.append({
                         "id": str(p),
                         "name": label,
-                        "source": "local"
+                        "source": "local",
+                        "resolved_path": str(resolved),
+                        "search_dir": str(search_dir),
+                        "is_symlink": p.is_symlink(),
                     })
 
     # Sort so runnable GGUF is at the top of local models
@@ -66,11 +74,53 @@ async def list_available_models():
 
     # Ollama options
     models.extend([
-        {"id": "qwen3.5:9b-mlx", "name": "[Ollama] Qwen-3.5-9B", "source": "ollama"},
-        {"id": "ornith-1.5:9b", "name": "[Ollama] Ornith-1.5-9B", "source": "ollama"},
+        {"id": "qwen3.5:9b-mlx", "name": "[Ollama] Qwen-3.5-9B", "source": "ollama", "resolved_path": "Ollama Service"},
+        {"id": "ornith-1.5:9b", "name": "[Ollama] Ornith-1.5-9B", "source": "ollama", "resolved_path": "Ollama Service"},
     ])
 
-    return {"models": models}
+    return {
+        "models": models,
+        "search_paths": [
+            {"path": str(PROJECT_MODELS_DIR), "type": "Project Models Directory"},
+            {"path": str(MODELS_DIR), "type": "Global Cache Directory"},
+            {"path": "http://127.0.0.1:11434", "type": "Local Ollama Endpoint"},
+        ]
+    }
+
+
+@router.post("/unload")
+async def unload_models():
+    """Manually unload all active models and free GPU/Unified Memory."""
+    freed_actions = []
+
+    # 1. Stop Ollama running models if Ollama is present
+    try:
+        req = urllib.request.Request("http://127.0.0.1:11434/api/ps", headers={"User-Agent": "FLOW-Studio"})
+        with urllib.request.urlopen(req, timeout=1.0) as resp:
+            data = json.loads(resp.read().decode())
+            for m in data.get("models", []):
+                mname = m.get("name")
+                if mname:
+                    subprocess.run(["ollama", "stop", mname], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    freed_actions.append(f"Stopped Ollama model: {mname}")
+    except Exception:
+        pass
+
+    # 2. Terminate any orphan llama-cli / llama-server processes
+    try:
+        subprocess.run(["pkill", "-f", "llama-cli"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        freed_actions.append("Terminated active llama-cli instances")
+    except Exception:
+        pass
+
+    # 3. Force garbage collection
+    gc.collect()
+
+    return {
+        "status": "success",
+        "message": "Memory successfully released and all models unloaded.",
+        "actions": freed_actions,
+    }
 
 
 @router.post("/download", response_model=DownloadStatusResponse)

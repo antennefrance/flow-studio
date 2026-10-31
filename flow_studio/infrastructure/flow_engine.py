@@ -72,6 +72,8 @@ class FlowStreamingEngine(InferenceEngineProtocol):
         # 2. Local FLOW / GGUF model via llama-cli
         target_model = self._find_model_path(request.model_id)
         if target_model and os.path.exists(self.llama_cli_path):
+            model_basename = Path(target_model).name
+
             # Format with proper instruct template for DeepSeek / Coder
             if "deepseek" in target_model.lower():
                 formatted_prompt = f"<｜User｜>{prompt}\n\n（日本語で分かりやすく簡潔に回答してください）<｜Assistant｜>"
@@ -87,8 +89,10 @@ class FlowStreamingEngine(InferenceEngineProtocol):
                     "-c", "512",
                     "--simple-io",
                     "--single-turn",
-                    "-ngl", "0",  # Safe zero-memory crash mode on 16GB Macs under high memory pressure
-                    "--temp", str(request.temperature or 0.3),
+                    "-ngl", "0",  # Safe mode on 16GB Macs under high memory pressure
+                    "--repeat-penalty", "1.18",
+                    "--repeat-last-n", "64",
+                    "--temp", str(request.temperature or 0.6),
                 ]
                 proc = await asyncio.create_subprocess_exec(
                     *cmd,
@@ -118,6 +122,10 @@ class FlowStreamingEngine(InferenceEngineProtocol):
 
                     if text.startswith("[ Prompt:"):
                         break
+
+                    # Guard against repeating prompt leaks
+                    if "（日本語で分かりやすく簡潔に回答してください）" in text or "<｜Assistant｜>" in text:
+                        continue
 
                     tokens_emitted += 1
                     yield text
