@@ -177,7 +177,11 @@
         </div>
         <div class="metrics">
             <div class="metric-card">
-                <span>Unified Memory</span>
+                <span>Model Load RAM (常駐枠)</span>
+                <span class="metric-val" id="model-ram-val" style="color: #38bdf8;">~2.48 GB</span>
+            </div>
+            <div class="metric-card">
+                <span>Unified Memory (Mac全体)</span>
                 <span class="metric-val" id="ram-val">Loading...</span>
             </div>
         </div>
@@ -196,6 +200,10 @@
             <div class="info-card">
                 <label>Active Model Resolution / 参照実体パス</label>
                 <div id="resolved-path-display"><code>Loading path...</code></div>
+                <div style="font-size: 0.73rem; color: #38bdf8; margin-top: 5px; font-weight: 700; display: flex; align-items: center; justify-content: space-between;">
+                    <span>推定RAM常駐量:</span>
+                    <span id="sidebar-ram-display" style="background: rgba(56, 189, 248, 0.15); padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.3);">~2.48 GB</span>
+                </div>
                 <div style="font-size: 0.68rem; color: var(--muted); margin-top: 4px;">
                     Search Dirs: <span id="search-dirs-count">Scanning...</span>
                 </div>
@@ -219,8 +227,24 @@
 
             <!-- HF Download Box -->
             <div class="box-section">
-                <label>Hugging Face Download</label>
-                <input type="text" id="hf-repo" placeholder="masahiroid/DeepSeek-Coder-V2-Lite-FLOW">
+                <label>Hugging Face Hub (masahiroid 公式)</label>
+                <select id="hf-preset-select" onchange="onPresetSelected()" style="font-size: 0.78rem; padding: 6px 8px;">
+                    <option value="">-- 公式プリセットから選ぶ --</option>
+                    <optgroup label="🇯🇵 日本語 Dense (LLM-jp)">
+                        <option value="masahiroid/llm-jp-4-32b-a3b-base-Pyrite-2bit-MLX" data-file="">[Dense 32B] llm-jp-4-32b (Pyrite 2-bit, 8.8GB)</option>
+                        <option value="masahiroid/llm-jp-4.1-8b-thinking-4bit-mlx" data-file="">[Dense 8B] llm-jp-4.1-8b (Thinking 4-bit, 4.8GB)</option>
+                        <option value="masahiroid/llm-jp-4.1-8b-thinking-gguf" data-file="llm-jp-4.1-8b-thinking-Q4_K_M.gguf">[Dense 8B] llm-jp-4.1-8b (GGUF Q4_K_M)</option>
+                    </optgroup>
+                    <optgroup label="👑 世界基準 Dense & Coder (Qwen)">
+                        <option value="masahiroid/Qwen3.8-27B-Pyrite-2bit-MLX" data-file="">[Dense 27B] Qwen3.8-27B (Pyrite 2-bit)</option>
+                        <option value="masahiroid/qwen3.5-4b-agentic-coder-v4-4bit-mlx" data-file="">[Coder 4B] Qwen3.5-4B (Agentic Coder MLX)</option>
+                    </optgroup>
+                    <optgroup label="⚡ MoE コーダー & 欧州MoE (DeepSeek / Mixtral)">
+                        <option value="masahiroid/DeepSeek-Coder-V2-Lite-Instruct-FLOW" data-file="">[MoE 16B] DeepSeek-Coder-V2 (FLOW-Boost 2-bit)</option>
+                        <option value="masahiroid/DeepSeek-Coder-V2-Lite-Instruct-Pyrite-2bit-GGUF" data-file="">[MoE 16B] DeepSeek-Coder-V2 (Pyrite GGUF)</option>
+                    </optgroup>
+                </select>
+                <input type="text" id="hf-repo" placeholder="masahiroid/DeepSeek-Coder-V2-Lite-FLOW" style="margin-top: 4px;">
                 <input type="text" id="hf-file" placeholder="File (optional, e.g. *.flow / *.gguf)">
                 <button class="btn-action" id="btn-download" onclick="downloadHfModel()">Download from Hub</button>
                 <div id="download-status" style="display:none;"></div>
@@ -319,18 +343,39 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
         }
         refreshModels();
 
+        function getModelRamEstimate(target) {
+            if (!target) return "~2.48 GB";
+            const id = (target.id || "").toLowerCase();
+            if (id.includes("mixtral")) return "~2.30 GB (常駐) / NVMe 76.7 GB";
+            if (id.includes("llm-jp")) return "~3.20 GB (Dense)";
+            if (id.includes("qwen3.5") && id.includes("mlx")) return "~2.50 GB (Dense)";
+            if (id.includes("deepseek") && id.includes("flow")) return "~2.48 GB (MoE Stream)";
+            if (id.includes("deepseek") && id.includes("pyrite")) return "~2.48 GB (Pyrite 2-bit)";
+            if (id.includes("deepseek") && id.includes("q2_k")) return "~6.00 GB (Q2_K)";
+            if (target.source === 'ollama') return `~${target.size_gb || 6.5} GB (Ollama)`;
+            return target.size_gb ? `~${target.size_gb} GB` : "~2.50 GB";
+        }
+
         function updateActiveModelBanner() {
             const sel = document.getElementById('model-select');
             const target = availableModelsData.find(m => m.id === sel.value);
             const titleEl = document.getElementById('active-model-title');
             const pathEl = document.getElementById('resolved-path-display');
             const badgeEl = document.getElementById('active-engine-badge');
+            const modelRamEl = document.getElementById('model-ram-val');
 
             if (target) {
                 titleEl.innerText = target.name;
                 pathEl.innerHTML = `<code>${target.resolved_path || target.id}</code>`;
+                const ramEst = getModelRamEstimate(target);
+                if (modelRamEl) modelRamEl.innerText = ramEst;
+                const sidebarRamEl = document.getElementById('sidebar-ram-display');
+                if (sidebarRamEl) sidebarRamEl.innerText = ramEst;
+
                 if (target.source === 'ollama') {
                     badgeEl.innerText = 'Engine: Ollama Service';
+                } else if (target.id.toLowerCase().includes('mixtral')) {
+                    badgeEl.innerText = 'Engine: FLOW-Direct (MoE Stream)';
                 } else if (target.category === 'mlx') {
                     badgeEl.innerText = 'Engine: Native MLX';
                 } else {
@@ -395,6 +440,15 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
                 }
             } catch(e) {
                 statusDiv.innerHTML = `<span style="color:#f87171;">✕ 接続エラー: ${e.message}</span>`;
+            }
+        }
+
+        function onPresetSelected() {
+            const sel = document.getElementById('hf-preset-select');
+            const opt = sel.options[sel.selectedIndex];
+            if (opt && opt.value) {
+                document.getElementById('hf-repo').value = opt.value;
+                document.getElementById('hf-file').value = opt.getAttribute('data-file') || '';
             }
         }
 
@@ -481,12 +535,14 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
 
             const sel = document.getElementById('model-select');
             const currentModelName = sel.options[sel.selectedIndex]?.text || sel.value;
+            const target = availableModelsData.find(m => m.id === sel.value);
+            const ramEst = getModelRamEstimate(target);
 
             const reqId = ++requestCounter;
             const assistantMsg = document.createElement('div');
             assistantMsg.className = 'msg assistant';
             assistantMsg.innerHTML = `
-                <div class="msg-model-badge">🤖 ${currentModelName}</div>
+                <div class="msg-model-badge">🤖 ${currentModelName} &nbsp;|&nbsp; 💾 ロードRAM: ${ramEst}</div>
                 <div class="loading-box" id="loading-box-${reqId}">
                     <div class="loading-header">
                         <span><span class="spinner"></span> ⚡ 初回メモリロード中 (NVMe ➔ RAM)</span>
@@ -495,7 +551,7 @@ RAMとNVMeを階層分離して超省メモリで大規模モデルを動かす�
                     <div class="progress-bar-bg">
                         <div class="progress-bar-fill" id="pbar-${reqId}"></div>
                     </div>
-                    <div class="loading-step-desc" id="pstep-${reqId}">NVMeからモデルテンソルを展開しています...</div>
+                    <div class="loading-step-desc" id="pstep-${reqId}">Unified RAMへモデル重み (${ramEst}) を展開しています...</div>
                 </div>
                 <div class="content" id="content-${reqId}" style="display: none;"></div>
             `;

@@ -97,8 +97,8 @@ class FlowStreamingEngine(InferenceEngineProtocol):
         max_tokens = request.max_tokens or 256
 
         # 1. If explicit Ollama model selected
-        if "qwen" in model_id or "ornith" in model_id:
-            selected_ollama = "qwen3.5:9b-mlx" if "qwen" in model_id else "ornith-1.5:9b"
+        if model_id.startswith("ollama:") or (":" in model_id and "/" not in model_id):
+            selected_ollama = model_id.replace("ollama:", "")
             async for token in self._stream_ollama(prompt, selected_ollama, max_tokens, request.temperature):
                 yield token
             return
@@ -106,8 +106,11 @@ class FlowStreamingEngine(InferenceEngineProtocol):
         # 2. Local Model (GGUF, FLOW, or MLX)
         target_model = self._find_model_path(request.model_id)
 
-        # Check if MLX Directory
-        if target_model and os.path.isdir(target_model) and (Path(target_model) / "config.json").exists():
+        # Check if MLX Directory or Mixtral Model (Direct or FLOW container)
+        if target_model and (
+            (os.path.isdir(target_model) and (Path(target_model) / "config.json").exists())
+            or "mixtral" in target_model.lower()
+        ):
             async for token in self._stream_mlx(prompt, target_model, max_tokens, request.temperature):
                 yield token
             return
@@ -220,30 +223,110 @@ class FlowStreamingEngine(InferenceEngineProtocol):
     async def _stream_mlx(
         self, prompt: str, model_path: str, max_tokens: int, temperature: float | None
     ) -> AsyncGenerator[str, None]:
-        """Stream inference from MLX model directory (e.g. Mixtral, Qwen MLX)."""
-        cmd = [
-            sys.executable,
-            "-m", "mlx_lm.generate",
-            "--model", model_path,
-            "--prompt", prompt,
-            "--max-tokens", str(max_tokens),
-            "--temp", str(temperature or 0.6),
-            "--verbose", "False"
-        ]
+        """Stream inference from MLX model directory (e.g. Mixtral Streaming Engine, Qwen MLX)."""
+        is_mixtral = "mixtral" in model_path.lower()
+        is_qwen = "qwen" in model_path.lower()
+
+        # Format prompt with conversational chat template if applicable
+        if is_qwen:
+            formatted_prompt = (
+                f"<|im_start|>system\n"
+                f"あなたは親切で有能なAIアシスタントです。日本語で直接、簡潔かつ丁寧に回答してください。<|im_end|>\n"
+                f"<|im_start|>user\n{prompt}<|im_end|>\n"
+                f"<|im_start|>assistant\n"
+            )
+        elif is_mixtral:
+            formatted_prompt = f"[INST] {prompt} [/INST]"
+        else:
+            formatted_prompt = prompt
+
+        if is_mixtral:
+            runner_script = Path("/Volumes/NVMe2TB/AI-LLM/LLMjp/Pyrite/moe_stream/mixtral_runner.py")
+            if runner_script.exists():
+                cmd = [
+                    sys.executable,
+                    str(runner_script),
+                    model_path,
+                    formatted_prompt,
+                    str(max_tokens),
+                ]
+            else:
+                cmd = [
+                    sys.executable,
+                    "-m", "mlx_lm", "generate",
+                    "--model", model_path,
+                    "--prompt", formatted_prompt,
+                    "--max-tokens", str(max_tokens),
+                    "--temp", str(temperature or 0.6),
+                ]
+        else:
+            cmd = [
+                sys.executable,
+                "-m", "mlx_lm", "generate",
+                "--model", model_path,
+                "--prompt", formatted_prompt,
+                "--max-tokens", str(max_tokens),
+                "--temp", str(temperature or 0.6),
+            ]
+
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL
             )
+            started = False
+            delimiter_count = 0
+
             while True:
+                if started and is_mixtral:
+                    chunk = await proc.stdout.read(128)
+                    if not chunk:
+                        break
+                    text = chunk.decode("utf-8", errors="replace")
+                    if "Prompt TPS:" in text or "Generation TPS:" in text:
+                        break
+                    yield text
+                    continue
+
                 line = await proc.stdout.readline()
                 if not line:
                     break
                 text = line.decode("utf-8", errors="replace")
-                if "Prompt:" in text or "Generation:" in text or "Peak memory:" in text:
+
+                # Mixtral streaming runner specific markers
+                if "Streaming generation started:" in text:
+                    started = True
                     continue
+                if is_mixtral and not started:
+                    if "Resident tensors:" in text:
+                        yield "【FLOW Engine】常駐テンソルをRAMへ配置完了（~2.3GB / NVMeオフロード 76.7GB）\n"
+                    continue
+
+                # Standard mlx_lm delimiters
+                if text.strip() == "==========":
+                    delimiter_count += 1
+                    if delimiter_count == 1:
+                        started = True
+                        continue
+                    elif delimiter_count >= 2:
+                        break  # Finished generation text block
+
+                if not started and not is_mixtral:
+                    continue
+
+                # Filter internal warnings and MLX profiling logs
+                if any(ignored in text for ignored in [
+                    "Prompt:", "Generation:", "Peak memory:", "[transformers]",
+                    "Calling `python", "The tokenizer you are loading", "This will lead to",
+                    "Initializing AntenneFrance", "Architecture:", "Building zero-copy",
+                    "Loading resident", "Instantiating base", "Quantizing resident",
+                    "Injecting Streaming", "successfully mounted"
+                ]):
+                    continue
+
                 yield text
+
             await proc.wait()
         except Exception as e:
             yield f"\n[MLX Inference Error: {e}]\n"

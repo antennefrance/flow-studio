@@ -62,7 +62,7 @@ class FlowArchiveWriter:
         self.entries: Dict[str, Any] = {}
         self._file = None
         self.current_offset = 0
-        self.header_reserve_bytes = 128 * 1024  # 128 KB header reserve
+        self.header_reserve_bytes = 4 * 1024 * 1024  # 4 MB header reserve for 1,500+ tensors
 
     def __enter__(self):
         self.output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -119,8 +119,8 @@ class FlowArchiveWriter:
             self._file.close()
 
 
-def convert_safetensors_to_flow(input_path: Path, output_path: Path) -> None:
-    """Converts safetensors file into .safetensors.flow."""
+def convert_safetensors_to_flow(input_path: Path, output_path: Path, zstd_level: int = 1) -> None:
+    """Converts safetensors file or multi-shard directory into .safetensors.flow."""
     print("=" * 72)
     print(f" 🌊 FLOW Converter: Packaging Safetensors into FLOW Format")
     print(f" Input:  {input_path}")
@@ -129,36 +129,46 @@ def convert_safetensors_to_flow(input_path: Path, output_path: Path) -> None:
 
     from safetensors import safe_open
 
+    if input_path.is_dir():
+        shard_paths = sorted(list(input_path.glob("*.safetensors")))
+        if not shard_paths:
+            raise FileNotFoundError(f"No .safetensors files found in {input_path}")
+        print(f"Detected {len(shard_paths)} safetensors shards in directory.")
+    else:
+        shard_paths = [input_path]
+
     total_raw_bytes = 0
     total_comp_bytes = 0
     t0 = time.perf_counter()
+    tensor_counter = 0
 
-    with safe_open(str(input_path), framework="numpy") as f:
-        keys = list(f.keys())
-        print(f"Found {len(keys):,} tensors in safetensors container.")
+    with FlowArchiveWriter(output_path, base_format="safetensors", zstd_level=zstd_level) as writer:
+        for shard_idx, shard_path in enumerate(shard_paths):
+            print(f"\n📂 Processing Shard [{shard_idx + 1}/{len(shard_paths)}]: {shard_path.name}")
+            with safe_open(str(shard_path), framework="numpy") as f:
+                keys = list(f.keys())
+                for i, k in enumerate(keys):
+                    tensor_np = f.get_tensor(k)
+                    raw_bytes = tensor_np.tobytes()
+                    itemsize = tensor_np.itemsize
+                    shape = list(tensor_np.shape)
+                    dtype = str(tensor_np.dtype)
 
-        with FlowArchiveWriter(output_path, base_format="safetensors", zstd_level=1) as writer:
-            for i, k in enumerate(keys):
-                tensor_np = f.get_tensor(k)
-                raw_bytes = tensor_np.tobytes()
-                itemsize = tensor_np.itemsize
-                shape = list(tensor_np.shape)
-                dtype = str(tensor_np.dtype)
+                    comp_len = writer.add_tensor(
+                        name=k,
+                        raw_bytes=raw_bytes,
+                        shape=shape,
+                        dtype=dtype,
+                        itemsize=itemsize,
+                    )
 
-                comp_len = writer.add_tensor(
-                    name=k,
-                    raw_bytes=raw_bytes,
-                    shape=shape,
-                    dtype=dtype,
-                    itemsize=itemsize,
-                )
+                    total_raw_bytes += len(raw_bytes)
+                    total_comp_bytes += comp_len
+                    tensor_counter += 1
 
-                total_raw_bytes += len(raw_bytes)
-                total_comp_bytes += comp_len
-
-                if (i + 1) % 50 == 0 or (i + 1) == len(keys):
-                    pct = ((i + 1) / len(keys)) * 100
-                    print(f"  [{pct:5.1f}%] Converted {i + 1}/{len(keys)} tensors...")
+                    if (i + 1) % 25 == 0 or (i + 1) == len(keys):
+                        pct = ((i + 1) / len(keys)) * 100
+                        print(f"  [{pct:5.1f}%] Shard {shard_idx + 1}: tensor {i + 1}/{len(keys)} (Total {tensor_counter} tensors, {total_comp_bytes / (1024**3):.2f} GB written)...")
 
     elapsed = time.perf_counter() - t0
     ratio = (1.0 - (total_comp_bytes / max(1, total_raw_bytes))) * 100
