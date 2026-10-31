@@ -27,7 +27,7 @@ class AppSettings:
     """Immutable application configuration."""
 
     app_name: str = "FLOW Studio (by Project Pyrite)"
-    version: str = "1.0.0"
+    version: str = "1.1.0"
     host: str = os.getenv("FLOW_HOST", DEFAULT_SERVER_HOST)
     port: int = int(os.getenv("FLOW_PORT", str(DEFAULT_SERVER_PORT)))
     debug: bool = os.getenv("FLOW_DEBUG", "false").lower() in ("true", "1")

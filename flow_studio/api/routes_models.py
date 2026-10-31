@@ -15,7 +15,10 @@ from huggingface_hub import HfApi, hf_hub_download, snapshot_download
 router = APIRouter(prefix="/api/models", tags=["Models"])
 
 MODELS_DIR = Path.home() / ".cache" / "flow_models"
+PROJECT_MODELS_DIR = Path(__file__).resolve().parents[2] / "models"
+
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
+PROJECT_MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class DownloadRequest(BaseModel):
@@ -33,21 +36,36 @@ class DownloadStatusResponse(BaseModel):
 async def list_available_models():
     """List all models detected locally and presets."""
     models = [
-        {"id": "auto", "name": "Auto Detect (Local Ollama / LLaMA / MLX)", "source": "system"},
-        {"id": "deepseek-flow", "name": "DeepSeek-Coder-V2-Lite-FLOW (15.7B Streaming)", "source": "flow"},
-        {"id": "llama-3.2-3b", "name": "Llama-3.2-3B-Instruct (GGUF)", "source": "local"},
-        {"id": "qwen3.5:9b-mlx", "name": "Qwen-3.5-9B (Ollama)", "source": "ollama"},
-        {"id": "ornith-1.5:9b", "name": "Ornith-1.5-9B (Ollama)", "source": "ollama"},
+        {"id": "auto", "name": "Auto Detect (Local FLOW / GGUF)", "source": "system"},
     ]
 
-    # Scan ~/.cache/flow_models
-    for p in MODELS_DIR.glob("**/*"):
-        if p.is_file() and (p.suffix in [".flow", ".gguf", ".safetensors"] or p.name.endswith(".gguf.flow")):
-            models.append({
-                "id": str(p),
-                "name": f"{p.name} ({round(p.stat().st_size / (1024**3), 2)} GB)",
-                "source": "downloaded"
-            })
+    seen = set()
+
+    for search_dir in [PROJECT_MODELS_DIR, MODELS_DIR]:
+        if not search_dir.exists():
+            continue
+        for p in search_dir.iterdir():
+            if p.is_file() or p.is_symlink():
+                resolved = p.resolve()
+                if resolved.exists() and resolved not in seen:
+                    seen.add(resolved)
+                    size_gb = round(resolved.stat().st_size / (1024**3), 2)
+                    name = p.name
+                    if ".flow" in name:
+                        label = f"[FLOW] {name} ({size_gb} GB)"
+                    else:
+                        label = f"[GGUF] {name} ({size_gb} GB)"
+                    models.append({
+                        "id": str(p),
+                        "name": label,
+                        "source": "local"
+                    })
+
+    # Ollama options
+    models.extend([
+        {"id": "qwen3.5:9b-mlx", "name": "[Ollama] Qwen-3.5-9B", "source": "ollama"},
+        {"id": "ornith-1.5:9b", "name": "[Ollama] Ornith-1.5-9B", "source": "ollama"},
+    ])
 
     return {"models": models}
 
@@ -61,14 +79,16 @@ async def download_hf_model(req: DownloadRequest):
 
     try:
         loop = asyncio.get_event_loop()
+        target_dir = PROJECT_MODELS_DIR / repo.replace("/", "_")
+        target_dir.mkdir(parents=True, exist_ok=True)
+
         if req.filename:
-            # Download specific file
             local_file = await loop.run_in_executor(
                 None,
                 lambda: hf_hub_download(
                     repo_id=repo,
                     filename=req.filename,
-                    local_dir=str(MODELS_DIR / repo.replace("/", "_")),
+                    local_dir=str(target_dir),
                 )
             )
             return DownloadStatusResponse(
@@ -77,12 +97,11 @@ async def download_hf_model(req: DownloadRequest):
                 local_path=local_file
             )
         else:
-            # Snapshot download of model repository
             local_dir = await loop.run_in_executor(
                 None,
                 lambda: snapshot_download(
                     repo_id=repo,
-                    local_dir=str(MODELS_DIR / repo.replace("/", "_")),
+                    local_dir=str(target_dir),
                     max_workers=4,
                 )
             )

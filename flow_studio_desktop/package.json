@@ -1,6 +1,6 @@
 {
   "name": "flow-studio",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "FLOW Studio Desktop - Universal Streaming AI Engine for Apple Silicon",
   "private": true,
   "scripts": {

@@ -1,6 +1,6 @@
 [package]
 name = "flow-studio-desktop"
-version = "1.0.0"
+version = "1.1.0"
 description = "FLOW Studio Desktop - Universal Streaming AI Engine"
 edition = "2021"
 
